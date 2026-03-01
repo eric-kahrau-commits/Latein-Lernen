@@ -1,0 +1,158 @@
+:root,
+[data-theme="dark"] {
+  /* Dunkles Farbschema – alle Farben aufeinander abgestimmt */
+  --bg-page: #1a1d24;
+  --bg-card: #22262e;
+  --bg-elevated: #2a2f38;
+  --text-primary: #f0f2f5;
+  --text-secondary: #9ca3af;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-accent: rgba(107, 124, 246, 0.35);
+  --accent: #6b7cf6;
+  --accent-strong: #5c6bc0;
+  --accent-soft: rgba(107, 124, 246, 0.2);
+  --shadow: rgba(0, 0, 0, 0.35);
+  --success: #81c784;
+  --success-soft: rgba(129, 199, 132, 0.2);
+  --warning: #ffb74d;
+  --warning-soft: rgba(255, 183, 77, 0.2);
+  --error: #e57373;
+  --error-soft: rgba(229, 115, 115, 0.2);
+
+  --sidebar-bg: #22262e;
+  --sidebar-bg-hover: #2a2f38;
+  --sidebar-text: #e8eaef;
+  --sidebar-active-bg: rgba(107, 124, 246, 0.25);
+  --sidebar-active-text: #a5b4fc;
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 64px;
+  --topbar-height: 56px;
+  --transition-sidebar: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 0.15s ease;
+  --shadow-sidebar: 4px 0 24px rgba(0, 0, 0, 0.4);
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --bg-hero-end: #252a33;
+  --hero-inset-highlight: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="light"] {
+  /* Kein reines Weiß – einheitliches weiches Blau-Grau */
+  --bg-page: #e5eaf2;
+  --bg-card: #f0f4fa;
+  --bg-elevated: #dce2ec;
+  --text-primary: #1c1f28;
+  --text-secondary: #546078;
+  --border: rgba(28, 31, 40, 0.09);
+  --border-accent: rgba(79, 107, 237, 0.45);
+  --accent: #4f6bed;
+  --accent-strong: #3d52c4;
+  --accent-soft: rgba(79, 107, 237, 0.18);
+  --shadow: rgba(28, 31, 40, 0.08);
+  --success: #4a9b4e;
+  --success-soft: rgba(74, 155, 78, 0.18);
+  --warning: #d4942a;
+  --warning-soft: rgba(212, 148, 42, 0.18);
+  --error: #c04d4d;
+  --error-soft: rgba(192, 77, 77, 0.18);
+  --sidebar-bg: #eef2f8;
+  --sidebar-bg-hover: #e2e8f2;
+  --sidebar-text: #1c1f28;
+  --sidebar-active-bg: rgba(79, 107, 237, 0.2);
+  --sidebar-active-text: #4f6bed;
+  --shadow-sidebar: 4px 0 24px rgba(28, 31, 40, 0.06);
+  --bg-hero-end: #c5cee0;
+  --hero-inset-highlight: rgba(255, 255, 255, 0.35);
+}
+
+[data-theme="sonnenuntergang"] {
+  --bg-page: #2d1f2e;
+  --bg-card: #3d2a3f;
+  --bg-elevated: #4a354a;
+  --text-primary: #f5e6e8;
+  --text-secondary: #c4a8b0;
+  --border: rgba(255, 200, 180, 0.12);
+  --border-accent: rgba(255, 140, 100, 0.4);
+  --accent: #ff8c69;
+  --accent-strong: #e67a50;
+  --accent-soft: rgba(255, 140, 105, 0.25);
+  --shadow: rgba(0, 0, 0, 0.4);
+  --sidebar-bg: #3d2a3f;
+  --sidebar-bg-hover: #4a354a;
+  --sidebar-text: #f0e0e4;
+  --sidebar-active-bg: rgba(255, 140, 105, 0.2);
+  --sidebar-active-text: #ffb399;
+  --shadow-sidebar: 4px 0 24px rgba(0, 0, 0, 0.5);
+  --bg-hero-end: #352538;
+  --hero-inset-highlight: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="wald"] {
+  --bg-page: #1a2420;
+  --bg-card: #243029;
+  --bg-elevated: #2e3d36;
+  --text-primary: #e2ede8;
+  --text-secondary: #8fa89a;
+  --border: rgba(140, 200, 160, 0.12);
+  --border-accent: rgba(100, 180, 120, 0.35);
+  --accent: #64b478;
+  --accent-strong: #4a9b5c;
+  --accent-soft: rgba(100, 180, 120, 0.2);
+  --shadow: rgba(0, 0, 0, 0.35);
+  --sidebar-bg: #243029;
+  --sidebar-bg-hover: #2e3d36;
+  --sidebar-text: #d8e8e0;
+  --sidebar-active-bg: rgba(100, 180, 120, 0.25);
+  --sidebar-active-text: #8fdd9e;
+  --shadow-sidebar: 4px 0 24px rgba(0, 0, 0, 0.4);
+  --bg-hero-end: #1e2a26;
+  --hero-inset-highlight: rgba(255, 255, 255, 0.03);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+html.font-size-large {
+  font-size: 18px;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.page-title {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.page-placeholder {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}

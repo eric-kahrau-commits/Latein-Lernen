@@ -1,0 +1,33 @@
+.layout {
+  min-height: 100vh;
+  padding-top: var(--topbar-height);
+  transition: padding-left var(--transition-sidebar);
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    padding-left: var(--sidebar-collapsed-width);
+  }
+}
+
+.main {
+  min-height: calc(100vh - var(--topbar-height));
+  padding: 24px;
+  background: var(--bg-page);
+  animation: contentFade 0.3s ease;
+}
+
+@media (max-width: 1023px) {
+  .main {
+    padding: 12px 10px 20px;
+  }
+}
+
+@keyframes contentFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

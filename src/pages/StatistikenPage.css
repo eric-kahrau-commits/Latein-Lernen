@@ -1,0 +1,242 @@
+.statistik-page {
+  padding: 0 0 48px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.statistik-section {
+  margin-bottom: 36px;
+}
+
+.statistik-heading {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.statistik-hinweis {
+  margin: 0 0 16px;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Kalender */
+.statistik-kalender-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 12px var(--shadow);
+}
+
+.statistik-kalender-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.statistik-nav-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.statistik-nav-btn:hover {
+  background: var(--border-accent);
+}
+
+.statistik-kalender-month {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.statistik-kalender-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.statistik-kalender-wochentag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 4px 0;
+}
+
+.statistik-kalender-tag {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.statistik-kalender-tag--leer {
+  opacity: 0.4;
+}
+
+.statistik-kalender-tag--aktiv {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.statistik-kalender-tag--heute {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.statistik-kalender-tag-num {
+  display: block;
+}
+
+.statistik-kalender-tag-min {
+  font-size: 0.7rem;
+  opacity: 0.9;
+}
+
+/* Balkendiagramme */
+.statistik-balken-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 12px var(--shadow);
+}
+
+.statistik-leer {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 24px;
+}
+
+.statistik-balken-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.statistik-balken-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr 60px;
+  align-items: center;
+  gap: 12px;
+}
+
+.statistik-balken-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statistik-balken-track {
+  height: 24px;
+  background: var(--bg-elevated);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.statistik-balken-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent) 0%, #8b9aff 100%);
+  border-radius: 8px;
+  transition: width 0.4s ease;
+}
+
+.statistik-balken-fill--prozent {
+  max-width: 100%;
+}
+
+.statistik-balken-wert {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+/* Treffer-Auswahl */
+.statistik-treffer-auswahl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.statistik-select-wrap label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.statistik-select {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.statistik-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.statistik-treffer-diagramm {
+  margin-top: 0;
+}
+
+.statistik-treffer-balken .statistik-balken-row {
+  grid-template-columns: 100px 1fr 50px;
+}
+
+@media (max-width: 600px) {
+  .statistik-treffer-auswahl {
+    grid-template-columns: 1fr;
+  }
+
+  .statistik-balken-row {
+    grid-template-columns: 1fr 80px;
+    gap: 8px;
+  }
+
+  .statistik-balken-label {
+    grid-column: 1 / -1;
+  }
+
+  .statistik-balken-track {
+    grid-column: 1;
+  }
+
+  .statistik-balken-wert {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}

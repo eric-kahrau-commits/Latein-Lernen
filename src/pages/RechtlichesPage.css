@@ -1,0 +1,86 @@
+.rechtliches-page {
+  padding: 0 0 48px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.rechtliches-intro {
+  margin: 0 0 24px;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+}
+
+.rechtliches-card {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px var(--shadow);
+}
+
+.rechtliches-heading {
+  margin: 0 0 12px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.rechtliches-name {
+  margin: 0 0 8px;
+  font-size: 1.0625rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.rechtliches-note {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.rechtliches-text {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.rechtliches-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.rechtliches-link:hover {
+  color: var(--sidebar-active-text);
+  text-decoration: underline;
+}
+
+.rechtliches-github-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.rechtliches-back {
+  margin: 32px 0 0;
+  font-size: 0.9375rem;
+}
+
+.rechtliches-back-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.rechtliches-back-link:hover {
+  text-decoration: underline;
+}

@@ -1,0 +1,337 @@
+.neu-page {
+  padding: 0 0 40px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.neu-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.neu-header .page-title {
+  margin: 0;
+}
+
+.neu-header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.neu-intro {
+  margin: 0 0 24px;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Buttons */
+.neu-btn {
+  padding: 10px 18px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.neu-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.neu-btn--primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.neu-btn--primary:hover:not(:disabled) {
+  background: #5c6bed;
+  transform: translateY(-1px);
+}
+
+.neu-btn--secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.neu-btn--secondary:hover:not(:disabled) {
+  background: var(--border);
+}
+
+.neu-btn--outline {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--border-accent);
+}
+
+.neu-btn--outline:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.neu-btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.neu-btn--ghost:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+.neu-btn--danger.neu-btn--ghost:hover:not(:disabled) {
+  color: var(--error);
+  background: var(--error-soft);
+}
+
+.neu-btn-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.neu-btn-icon:hover:not(:disabled) {
+  background: var(--error-soft);
+  color: var(--error);
+}
+
+.neu-btn-icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.neu-star-btn {
+  color: var(--text-secondary);
+}
+
+.neu-star-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.neu-star-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.neu-star-icon--filled {
+  color: var(--accent);
+}
+
+/* Empty state */
+.neu-empty {
+  padding: 48px 24px;
+  text-align: center;
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+}
+
+.neu-empty-text {
+  margin: 0 0 8px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.neu-empty-hint {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+}
+
+/* Set list */
+.neu-set-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.neu-set-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px var(--shadow);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.neu-set-card:hover {
+  border-color: rgba(107, 124, 246, 0.5);
+  box-shadow: 0 4px 16px var(--shadow);
+}
+
+.neu-set-card-main {
+  min-width: 0;
+}
+
+.neu-set-name {
+  margin: 0 0 4px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.neu-set-meta {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.neu-set-card-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Create form */
+.neu-create {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.neu-set-name-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.neu-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.neu-input {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.neu-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(107, 124, 246, 0.2);
+}
+
+.neu-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.neu-set-name-input {
+  max-width: 400px;
+}
+
+.neu-vokabeln-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.neu-vokabeln-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.neu-vokabeln-count {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.neu-vokabeln-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+
+.neu-vokabeln-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 400px;
+}
+
+.neu-vokabeln-table th {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.neu-vokabeln-table td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.neu-vokabeln-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.neu-th-action,
+.neu-td-action {
+  width: 48px;
+  text-align: center;
+}
+
+.neu-cell-input {
+  padding: 10px 12px;
+  font-size: 0.9375rem;
+}
+
+@media (max-width: 600px) {
+  .neu-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .neu-set-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .neu-vokabeln-table {
+    min-width: 280px;
+  }
+}

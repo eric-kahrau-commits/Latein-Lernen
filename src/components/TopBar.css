@@ -1,0 +1,117 @@
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 90;
+  height: var(--topbar-height);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  box-shadow: 0 1px 3px var(--shadow);
+  transition: padding-left var(--transition-sidebar);
+}
+
+.topbar-profile {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.topbar-profile-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--accent);
+}
+
+.topbar-profile-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 380px) {
+  .topbar-profile-name {
+    max-width: 80px;
+  }
+}
+
+.hamburger {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  color: var(--text-primary);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.hamburger:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.hamburger-box {
+  width: 18px;
+  height: 14px;
+  position: relative;
+}
+
+.hamburger-inner {
+  position: absolute;
+  left: 0;
+  width: 18px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transition: transform var(--transition-sidebar), opacity var(--transition-fast);
+}
+
+.hamburger-inner::before,
+.hamburger-inner::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 18px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transition: transform var(--transition-sidebar);
+}
+
+.hamburger-inner::before {
+  top: -6px;
+}
+
+.hamburger-inner::after {
+  top: 6px;
+}
+
+.hamburger.open .hamburger-inner {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.hamburger.open .hamburger-inner::before {
+  transform: translateY(6px) rotate(-90deg);
+  opacity: 0;
+}
+
+.hamburger.open .hamburger-inner::after {
+  transform: translateY(-6px) rotate(-90deg);
+}

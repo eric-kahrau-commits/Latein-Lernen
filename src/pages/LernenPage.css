@@ -1,0 +1,2126 @@
+/* ========== Page & Layout (iOS-ready) ========== */
+.lernen-page {
+  padding: 20px 20px 48px;
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: calc(100vh - var(--topbar-height));
+  transition: background 0.4s ease;
+}
+
+.lernen-page--start {
+  background: linear-gradient(180deg, var(--bg-page) 0%, var(--bg-card) 35%, var(--bg-page) 100%);
+}
+
+.lernen-header {
+  margin-bottom: 28px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.lernen-header-left {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.lernen-header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.lernen-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.lernen-back {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 14px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 12px var(--shadow);
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lernen-back:hover {
+  background: var(--bg-elevated);
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px var(--shadow);
+}
+
+.lernen-back:active {
+  transform: scale(0.98);
+}
+
+.lernen-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  border: 1px solid var(--border-accent);
+  white-space: nowrap;
+}
+
+.lernen-progress-pill--timer {
+  color: #ff9f43;
+  background: rgba(255, 159, 67, 0.15);
+  border-color: rgba(255, 159, 67, 0.35);
+}
+
+.lernen-welcome {
+  margin: -8px 0 24px;
+  font-size: 1.0625rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.4;
+  animation: lernenFadeIn 0.5s ease backwards;
+}
+
+@keyframes lernenFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Karussell-Container: nur eine Ebene sichtbar, Rest fährt seitlich raus */
+.lernen-carousel {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: visible;
+  min-height: 280px;
+}
+
+.lernen-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  transition: transform 0.42s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.35s ease;
+  will-change: transform;
+}
+
+/* Aktuelle Ebene ohne Übergang: zentral, Inhalt sichtbar */
+.lernen-screen--visible {
+  position: relative;
+  transform: translateX(0);
+  overflow: visible;
+}
+
+.lernen-inhalt {
+  min-height: 200px;
+}
+
+/* Ausfahrend: nach links (bei „weiter“) */
+.lernen-screen--exit-left {
+  z-index: 0;
+  pointer-events: none;
+  animation: lernenExitLeft 0.42s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes lernenExitLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0.6;
+  }
+}
+
+/* Ausfahrend: nach rechts (bei „zurück“) */
+.lernen-screen--exit-right {
+  z-index: 0;
+  pointer-events: none;
+  animation: lernenExitRight 0.42s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes lernenExitRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0.6;
+  }
+}
+
+/* Einfahrend von rechts (bei „weiter“) */
+.lernen-screen--enter-from-right {
+  z-index: 1;
+  animation: lernenEnterFromRight 0.42s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes lernenEnterFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Einfahrend von links (bei „zurück“) */
+.lernen-screen--enter-from-left {
+  z-index: 1;
+  animation: lernenEnterFromLeft 0.42s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes lernenEnterFromLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ========== Kachel-Grid ========== */
+.lernen-grid {
+  display: grid;
+  gap: 16px;
+  animation: lernenGridIn 0.45s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+}
+
+@keyframes lernenGridIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lernen-grid--themen {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 18px;
+}
+
+.lernen-grid--options {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+.lernen-grid--typen {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+/* Einzelne Kachel – attraktiv, iOS Touch min 44px */
+.lernen-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 120px;
+  padding: 24px 20px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: linear-gradient(165deg, var(--bg-card) 0%, var(--bg-elevated) 100%);
+  box-shadow: 0 4px 20px var(--shadow), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1),
+    box-shadow 0.3s ease,
+    border-color 0.25s ease,
+    background 0.25s ease;
+  animation: lernenTileIn 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  overflow: hidden;
+}
+
+.lernen-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    transparent 50%,
+    rgba(107, 124, 246, 0.08) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+
+.lernen-tile:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 16px 40px var(--shadow), 0 0 0 1px rgba(107, 124, 246, 0.2);
+  border-color: var(--border-accent);
+}
+
+.lernen-tile:hover::before {
+  opacity: 1;
+}
+
+.lernen-tile:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--bg-page), 0 0 0 5px var(--accent);
+}
+
+.lernen-tile:active {
+  transform: translateY(-2px) scale(1);
+  transition-duration: 0.15s;
+}
+
+@keyframes lernenTileIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Icon in farbigem Kreis */
+.lernen-tile-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  position: relative;
+  z-index: 1;
+  transition: transform 0.3s ease, background 0.25s ease;
+}
+
+.lernen-tile:hover .lernen-tile-icon {
+  transform: scale(1.08);
+  background: rgba(107, 124, 246, 0.3);
+}
+
+.lernen-tile-label {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+  letter-spacing: -0.01em;
+  position: relative;
+  z-index: 1;
+  line-height: 1.3;
+}
+
+/* Themen-Kacheln – erste Ebene, etwas größer */
+.lernen-tile--thema {
+  min-height: 130px;
+  background: linear-gradient(165deg, var(--bg-card) 0%, var(--bg-elevated) 100%);
+}
+
+.lernen-tile--thema .lernen-tile-icon {
+  width: 48px;
+  height: 48px;
+  padding: 12px;
+  border-radius: 16px;
+}
+
+.lernen-tile--thema .lernen-tile-label {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.lernen-tile--active {
+  border-color: var(--border-accent);
+  background: linear-gradient(165deg, var(--accent-soft) 0%, var(--bg-card) 50%, var(--bg-elevated) 100%);
+  box-shadow: 0 6px 24px var(--shadow), 0 0 0 1px rgba(107, 124, 246, 0.15);
+}
+
+.lernen-tile--active .lernen-tile-icon {
+  background: rgba(107, 124, 246, 0.35);
+  color: var(--accent);
+}
+
+.lernen-tile--disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  border-color: var(--border);
+}
+
+.lernen-tile--disabled:hover {
+  transform: none;
+  box-shadow: 0 4px 20px var(--shadow);
+  border-color: var(--border);
+}
+
+.lernen-tile--disabled::before {
+  display: none;
+}
+
+.lernen-tile-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  padding: 5px 10px;
+  border-radius: 8px;
+  z-index: 1;
+}
+
+/* Optionen-Kacheln */
+.lernen-tile--option {
+  min-height: 116px;
+}
+
+.lernen-tile--option .lernen-tile-label {
+  font-size: 1.0625rem;
+}
+
+.lernen-tile-meta {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  position: relative;
+  z-index: 1;
+}
+
+/* Kachel mit Stern */
+.lernen-tile--with-star {
+  position: relative;
+  padding-right: 52px;
+  padding-top: 44px;
+}
+
+.lernen-tile--with-star .lernen-tile-label,
+.lernen-tile--with-star .lernen-tile-meta {
+  display: block;
+  text-align: left;
+}
+
+.lernen-star-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.lernen-star-btn:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+  transform: scale(1.08);
+}
+
+.lernen-star-btn:focus {
+  outline: none;
+}
+
+.lernen-star-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.lernen-star-icon--filled {
+  color: var(--accent);
+}
+
+/* Typ-Kacheln (A-, O-, U-Deklination etc.) */
+.lernen-tile--typ {
+  min-height: 100px;
+}
+
+.lernen-tile--typ .lernen-tile-icon {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  border-radius: 12px;
+}
+
+.lernen-tile--typ .lernen-tile-label {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* Lernmodus-Auswahl */
+.lernen-modus-auswahl {
+  animation: lernenGridIn 0.4s ease backwards;
+}
+
+.lernen-modus-frage {
+  margin: 0 0 24px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Anschauen: Tabellen */
+.lernen-anschauen {
+  animation: lernenGridIn 0.4s ease backwards;
+}
+
+.lernen-anschauen-title {
+  margin: 0 0 24px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.lernen-placeholder {
+  margin: 0;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.dekl-tabellen {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.dekl-beispiel-block {
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px var(--shadow);
+}
+
+.dekl-beispiel-title {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-align: center;
+}
+
+.dekl-zwei-tabellen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.dekl-tabelle-wrap {
+  overflow: auto;
+}
+
+.dekl-tabelle-ueberschrift {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.dekl-tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.dekl-tabelle th,
+.dekl-tabelle td {
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+}
+
+.dekl-tabelle thead th {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.dekl-tabelle tbody th {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-weight: 500;
+  width: 28%;
+}
+
+.dekl-tabelle tbody td {
+  color: var(--text-primary);
+}
+
+.dekl-tabelle tbody tr:hover td {
+  background: rgba(107, 124, 246, 0.06);
+}
+
+/* Vokabeln Anschauen: Latein | Deutsch */
+.lernen-vokabeln-tabelle-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+
+.lernen-vokabeln-tabelle {
+  width: 100%;
+  min-width: 280px;
+  border-collapse: collapse;
+  font-size: 1rem;
+}
+
+.lernen-vokabeln-tabelle th,
+.lernen-vokabeln-tabelle td {
+  padding: 14px 18px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.lernen-vokabeln-tabelle thead th {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.lernen-vokabeln-tabelle tbody td {
+  color: var(--text-primary);
+}
+
+.lernen-vokabeln-tabelle tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.lernen-vokabeln-tabelle tbody tr:hover td {
+  background: rgba(107, 124, 246, 0.06);
+}
+
+/* Karteikarten (Vokabeln) */
+.lernen-karteikarten {
+  padding: 20px 0;
+  animation: lernenGridIn 0.4s ease backwards;
+}
+
+.lernen-karte {
+  max-width: 380px;
+  margin: 0 auto;
+  aspect-ratio: 3/2;
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.lernen-karte--flipped {
+  cursor: default;
+}
+
+.lernen-karte-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.5s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transform-style: preserve-3d;
+}
+
+.lernen-karte--flipped .lernen-karte-inner {
+  transform: rotateY(180deg);
+}
+
+.lernen-karte-vorne,
+.lernen-karte-hinten {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 24px;
+  border: 1px solid var(--border-accent);
+  background: linear-gradient(165deg, var(--bg-card) 0%, var(--bg-elevated) 100%);
+  box-shadow: 0 8px 32px var(--shadow), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+}
+
+.lernen-karte-hinten {
+  transform: rotateY(180deg);
+}
+
+.lernen-karte-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.lernen-karte-text {
+  margin: 0 0 16px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+
+.lernen-karte-hinweis {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-top: auto;
+}
+
+.lernen-karte-aktionen {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 240px;
+  justify-content: center;
+}
+
+.lernen-karte-btn {
+  flex: 1;
+  padding: 14px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lernen-karte-btn:hover {
+  transform: translateY(-2px);
+}
+
+.lernen-karte-btn--richtig {
+  background: var(--success);
+  color: #fff;
+}
+
+.lernen-karte-btn--richtig:hover {
+  box-shadow: 0 4px 16px rgba(129, 199, 132, 0.4);
+}
+
+.lernen-karte-btn--falsch {
+  background: var(--error-soft);
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
+.lernen-karte-btn--falsch:hover {
+  box-shadow: 0 4px 16px rgba(229, 115, 115, 0.25);
+}
+
+/* Responsive Tabellen */
+@media (max-width: 700px) {
+  .dekl-zwei-tabellen {
+    grid-template-columns: 1fr;
+  }
+
+  .dekl-beispiel-block {
+    padding: 16px;
+  }
+
+  .dekl-tabelle {
+    font-size: 0.875rem;
+  }
+
+  .dekl-tabelle th,
+  .dekl-tabelle td {
+    padding: 8px 10px;
+  }
+}
+
+/* ========== Quiz – klar und motivierend ========== */
+.lernen-quiz-fortschritt {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.lernen-quiz {
+  animation: lernenGridIn 0.4s ease backwards;
+  padding: 24px 0;
+}
+
+.lernen-quiz-frage-text {
+  margin: 0 0 28px;
+  padding: 24px 20px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.5;
+  background: var(--bg-card);
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 20px var(--shadow);
+}
+
+.lernen-quiz-frage-text strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.lernen-quiz-optionen {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+.lernen-quiz-option {
+  min-height: 52px;
+  padding: 16px 24px;
+  border-radius: 16px;
+  border: 2px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 1.125rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 12px var(--shadow);
+}
+
+.lernen-quiz-option:hover:not(:disabled) {
+  border-color: var(--border-accent);
+  background: var(--accent-soft);
+  transform: scale(1.02);
+  box-shadow: 0 4px 20px var(--shadow);
+}
+
+.lernen-quiz-option:disabled {
+  cursor: default;
+}
+
+.lernen-quiz-option--richtig {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--text-primary);
+  animation: quizOptionRichtig 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  box-shadow: 0 4px 20px var(--shadow), 0 0 0 0 rgba(129, 199, 132, 0.4);
+}
+
+.lernen-quiz-option--falsch {
+  border-color: var(--error);
+  background: var(--error-soft);
+  color: var(--text-primary);
+  animation: quizOptionFalsch 0.5s ease-out forwards;
+}
+
+@keyframes quizOptionRichtig {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 4px 20px var(--shadow), 0 0 0 0 var(--success-soft);
+  }
+  35% {
+    transform: scale(1.04);
+    box-shadow: 0 6px 24px var(--shadow), 0 0 0 12px var(--success-soft);
+  }
+  70% {
+    transform: scale(1.02);
+    box-shadow: 0 4px 20px var(--shadow), 0 0 0 6px var(--success-soft);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 4px 20px var(--shadow), 0 0 0 0 transparent;
+  }
+}
+
+@keyframes quizOptionFalsch {
+  0%, 100% { transform: translateX(0); }
+  12% { transform: translateX(-6px); }
+  24% { transform: translateX(6px); }
+  36% { transform: translateX(-4px); }
+  48% { transform: translateX(4px); }
+  60% { transform: translateX(-2px); }
+  72% { transform: translateX(2px); }
+  84% { transform: translateX(-1px); }
+  100% { transform: translateX(0); }
+}
+
+/* Test-Modus: Eingabe */
+.lernen-quiz--test .lernen-quiz-frage-text {
+  margin-bottom: 20px;
+}
+
+.lernen-quiz-eingabe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.lernen-quiz-input {
+  flex: 1;
+  min-width: 140px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 2px solid var(--border-accent);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-family: var(--font-sans);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.lernen-quiz-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.lernen-quiz-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.lernen-quiz-input--richtig {
+  border-color: var(--success);
+  background: var(--success-soft);
+}
+
+.lernen-quiz-input--falsch {
+  border-color: var(--error);
+  background: var(--error-soft);
+}
+
+.lernen-quiz-input:disabled {
+  cursor: default;
+}
+
+.lernen-quiz-prüfen {
+  padding: 14px 22px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.lernen-quiz-prüfen:hover:not(:disabled) {
+  background: #7c8bf8;
+  transform: translateY(-1px);
+}
+
+.lernen-quiz-prüfen:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lernen-quiz-lösung {
+  margin: 16px 0 0;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.lernen-quiz-lösung--richtig {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.lernen-quiz-lösung--falsch {
+  color: var(--error);
+}
+
+/* Auswertung – moderne Animationen */
+@keyframes auswertungEnter {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes auswertungProzentIn {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes auswertungRingIn {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-90deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes auswertungMessageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes auswertungFehlerIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes auswertungBtnIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes auswertungPerfectPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(107, 124, 246, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 20px rgba(107, 124, 246, 0);
+  }
+}
+
+@keyframes auswertungPerfectGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 12px rgba(107, 124, 246, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 24px rgba(107, 124, 246, 0.6));
+  }
+}
+
+.lernen-auswertung {
+  animation: auswertungEnter 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) forwards,
+    auswertungLessonComplete 0.8s cubic-bezier(0.34, 1.2, 0.64, 1) 0.6s forwards;
+  text-align: center;
+  padding: 32px 0 28px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+@keyframes auswertungLessonComplete {
+  0% {
+    filter: brightness(1);
+  }
+  40% {
+    filter: brightness(1.12);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+.lernen-auswertung-ring-wrap {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin: 0 auto 24px;
+  animation: auswertungRingIn 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) 0.1s backwards;
+}
+
+.lernen-auswertung-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.lernen-auswertung-ring-bg {
+  stroke: var(--border);
+  opacity: 0.6;
+}
+
+.lernen-auswertung-ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+}
+
+.lernen-auswertung--perfect .lernen-auswertung-ring-fill {
+  stroke: var(--accent);
+}
+
+.lernen-auswertung-prozent-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: auswertungProzentIn 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) 0.25s backwards;
+}
+
+.lernen-auswertung--perfect .lernen-auswertung-prozent-wrap {
+  animation: auswertungPerfectGlow 2s ease-in-out 1.2s infinite;
+}
+
+.lernen-auswertung-prozent {
+  margin: 0;
+  font-size: 2.75rem;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.lernen-auswertung-message {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  animation: auswertungMessageIn 0.45s ease-out 0.4s backwards;
+}
+
+.lernen-auswertung--perfect .lernen-auswertung-message {
+  color: var(--accent);
+}
+
+.lernen-auswertung-label {
+  margin: 0 0 24px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  animation: auswertungMessageIn 0.45s ease-out 0.5s backwards;
+}
+
+.lernen-auswertung-fehler {
+  margin-bottom: 28px;
+  text-align: left;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+  animation: auswertungFehlerIn 0.45s ease-out 0.55s backwards;
+}
+
+.lernen-auswertung-fehler-title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--error);
+}
+
+.lernen-auswertung-fehler-liste {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.lernen-auswertung-fehler-liste li {
+  margin-bottom: 6px;
+  animation: auswertungFehlerIn 0.35s ease-out backwards;
+}
+
+/* Eigene Seite: Lobeskronen-Belohnung (vor der Auswertung) */
+.lernen-kronen-seite {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  padding: 32px 24px;
+  text-align: center;
+  animation: kronenSeiteIn 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+}
+
+.lernen-kronen-seite-crowns {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.lernen-kronen-seite-crown {
+  width: 48px;
+  height: 48px;
+  color: #ffc107;
+  filter: drop-shadow(0 2px 12px rgba(255, 193, 7, 0.55));
+  animation: kronenCrownPop 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+}
+
+.lernen-kronen-seite-title {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  animation: kronenTextIn 0.4s ease-out 0.15s backwards;
+}
+
+.lernen-kronen-seite-text {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  animation: kronenTextIn 0.4s ease-out 0.25s backwards;
+}
+
+.lernen-kronen-seite-hint {
+  margin: 10px 0 28px;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  animation: kronenTextIn 0.4s ease-out 0.35s backwards;
+}
+
+.lernen-kronen-seite-btn {
+  padding: 14px 28px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #6b7cf6 0%, #5a6ae6 100%);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(107, 124, 246, 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  animation: kronenTextIn 0.4s ease-out 0.45s backwards;
+}
+
+.lernen-kronen-seite-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(107, 124, 246, 0.5);
+  background: linear-gradient(145deg, #7a8aff 0%, #6b7cf6 100%);
+}
+
+@keyframes kronenSeiteIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Lobeskronen-Belohnung (alter Popup in Auswertung – nicht mehr genutzt) */
+.kronen-reward-popup {
+  margin-bottom: 24px;
+  padding: 20px 24px;
+  background: linear-gradient(145deg, rgba(255, 193, 7, 0.18) 0%, rgba(255, 152, 0, 0.12) 50%, rgba(107, 124, 246, 0.08) 100%);
+  border: 1px solid rgba(255, 193, 7, 0.4);
+  border-radius: 20px;
+  text-align: center;
+  animation: kronenRewardIn 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+}
+
+.kronen-reward-crowns {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.kronen-reward-crown {
+  width: 36px;
+  height: 36px;
+  color: #ffc107;
+  filter: drop-shadow(0 2px 8px rgba(255, 193, 7, 0.5));
+  animation: kronenCrownPop 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+}
+
+.kronen-reward-text {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  animation: kronenTextIn 0.4s ease-out 0.2s backwards;
+}
+
+.kronen-reward-hint {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  animation: kronenTextIn 0.4s ease-out 0.3s backwards;
+}
+
+@keyframes kronenRewardIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes kronenCrownPop {
+  from {
+    opacity: 0;
+    transform: scale(0) rotate(-20deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes kronenTextIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lernen-auswertung-ring-wrap--gold .lernen-auswertung-ring-bg {
+  stroke: #ffc107;
+  opacity: 0.35;
+}
+
+.lernen-auswertung-ring-wrap--gold .lernen-auswertung-ring-fill {
+  stroke: #ffc107;
+}
+
+.lernen-auswertung-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.lernen-auswertung-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border-accent);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  animation: auswertungBtnIn 0.4s ease-out backwards;
+}
+
+.lernen-auswertung-btn--1 {
+  animation-delay: 0.65s;
+}
+.lernen-auswertung-btn--2 {
+  animation-delay: 0.75s;
+}
+.lernen-auswertung-btn--3 {
+  animation-delay: 0.85s;
+}
+
+.lernen-auswertung-btn--share {
+  animation-delay: 0.9s;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.lernen-auswertung-btn--share:hover {
+  background: var(--bg-card);
+  border-color: var(--border-accent);
+}
+
+.lernen-auswertung-share-feedback {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--success);
+  text-align: center;
+}
+
+.lernen-auswertung-achievement-toast {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border-accent);
+  border-radius: 12px;
+  animation: lernenAchievementIn 0.4s ease-out;
+}
+
+@keyframes lernenAchievementIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lernen-achievement-toast-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lernen-achievement-toast-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.lernen-achievement-toast-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.lernen-auswertung-btn:hover {
+  background: var(--accent-soft);
+  border-color: rgba(107, 124, 246, 0.5);
+  transform: translateY(-2px);
+}
+
+.lernen-auswertung-btn svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Streak-Popup direkt unter der Abfrage-Auswertung */
+.streak-popup {
+  margin-top: 28px;
+  padding: 24px 28px;
+  background: linear-gradient(145deg, rgba(255, 140, 50, 0.12) 0%, rgba(255, 100, 50, 0.08) 50%, rgba(107, 124, 246, 0.1) 100%);
+  border: 1px solid rgba(255, 160, 80, 0.35);
+  border-radius: 20px;
+  text-align: center;
+  animation: streakPopIn 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) 0.2s backwards;
+  position: relative;
+  overflow: hidden;
+}
+
+.streak-popup.streak-popup--levelup {
+  animation: streakPopIn 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) 0.2s backwards,
+    streakLevelUpBounce 0.8s cubic-bezier(0.34, 1.4, 0.64, 1) 0.8s forwards;
+}
+
+.streak-popup--levelup .streak-popup-badge {
+  animation: streakBadgeIn 0.4s ease-out 0.7s backwards,
+    streakBadgePulse 1.2s ease-in-out 1.4s infinite;
+}
+
+@keyframes streakLevelUpBounce {
+  0% { transform: translateY(0) scale(1); filter: brightness(1); }
+  30% { transform: translateY(-8px) scale(1.08); filter: brightness(1.15); }
+  60% { transform: translateY(2px) scale(1.02); filter: brightness(1.05); }
+  100% { transform: translateY(0) scale(1); filter: brightness(1); }
+}
+
+@keyframes streakBadgePulse {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 1; }
+  50% { transform: translateY(0) scale(1.05); opacity: 0.95; }
+}
+
+.streak-popup::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 180, 80, 0.15) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.streak-popup-flame-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  animation: streakFlamePulse 1.5s ease-in-out 0.5s infinite;
+}
+
+.streak-popup-flame {
+  width: 48px;
+  height: 48px;
+  color: #ff9f43;
+  filter: drop-shadow(0 0 12px rgba(255, 159, 67, 0.6));
+}
+
+.streak-popup-number {
+  font-size: 2.75rem;
+  font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(135deg, #ff9f43 0%, #ee5a24 50%, #ff6b35 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.03em;
+  animation: streakNumberIn 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) 0.4s backwards;
+}
+
+.streak-popup-label {
+  margin: 8px 0 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  animation: streakTextIn 0.4s ease-out 0.5s backwards;
+}
+
+.streak-popup-badge {
+  margin: 10px 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #ee5a24;
+  animation: streakBadgeIn 0.4s ease-out 0.7s backwards;
+}
+
+@keyframes streakPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes streakFlamePulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px rgba(255, 159, 67, 0.6)); }
+  50% { transform: scale(1.08); filter: drop-shadow(0 0 18px rgba(255, 159, 67, 0.8)); }
+}
+
+@keyframes streakNumberIn {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes streakTextIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes streakBadgeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 100 % – besonderer Effekt */
+.lernen-auswertung--perfect .lernen-auswertung-ring-wrap {
+  animation: auswertungRingIn 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) 0.1s backwards,
+    auswertungPerfectPulse 2s ease-in-out 1.4s infinite;
+}
+
+@media (max-width: 500px) {
+  .lernen-auswertung-buttons {
+    flex-direction: column;
+  }
+
+  .lernen-auswertung-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .lernen-auswertung-prozent {
+    font-size: 2rem;
+  }
+
+  .lernen-auswertung-ring-wrap {
+    width: 120px;
+    height: 120px;
+  }
+}
+
+/* ========== Responsive (iOS / kleine Screens) ========== */
+@media (max-width: 600px) {
+  .lernen-page {
+    padding: 16px 16px 40px;
+  }
+
+  .lernen-header {
+    margin-bottom: 20px;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 10px 8px;
+  }
+
+  .lernen-title {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    font-size: 1.375rem;
+  }
+
+  .lernen-header-left {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .lernen-header-right {
+    grid-column: 2;
+    grid-row: 2;
+    justify-content: flex-end;
+  }
+
+  .lernen-welcome {
+    margin-bottom: 20px;
+    font-size: 1rem;
+  }
+
+  .lernen-progress-pill {
+    font-size: 0.8125rem;
+    padding: 6px 12px;
+  }
+
+  .lernen-grid--themen {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .lernen-grid--options,
+  .lernen-grid--typen {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .lernen-tile {
+    min-height: 112px;
+    padding: 20px 18px;
+    border-radius: 18px;
+  }
+
+  .lernen-tile--thema {
+    min-height: 120px;
+  }
+
+  .lernen-tile--thema .lernen-tile-label {
+    font-size: 1.125rem;
+  }
+
+  .lernen-quiz-frage-text {
+    padding: 20px 16px;
+    font-size: 1.125rem;
+  }
+
+  .lernen-quiz-option {
+    min-height: 48px;
+    padding: 14px 20px;
+    font-size: 1.0625rem;
+  }
+}
+
+/* Sachkunde: Bericht */
+.lernen-sachkunde-bericht {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.lernen-sachkunde-bericht-text {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--text-primary);
+  white-space: pre-line;
+}
+
+/* Sachkunde: Paare finden (Spiel) */
+.lernen-sachkunde-spiel {
+  margin-top: 12px;
+}
+
+.lernen-sachkunde-spiel-anleitung {
+  margin: 0 0 16px;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+}
+
+.lernen-sachkunde-spiel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.lernen-sachkunde-spiel-karte {
+  min-height: 72px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.lernen-sachkunde-spiel-karte:hover:not(:disabled) {
+  background: var(--bg-card);
+  border-color: var(--border-accent);
+  transform: scale(1.02);
+}
+
+.lernen-sachkunde-spiel-karte:disabled {
+  cursor: default;
+}
+
+.lernen-sachkunde-spiel-karte--ausgewaehlt {
+  background: var(--accent);
+  border-color: var(--accent-strong);
+  color: var(--text-on-accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.lernen-sachkunde-spiel-karte--getroffen {
+  background: var(--success-soft);
+  border-color: var(--success);
+  color: var(--text-primary);
+  cursor: default;
+}
+
+.lernen-sachkunde-spiel-karte-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lernen-sachkunde-spiel-fertig {
+  margin-top: 24px;
+  padding: 20px;
+  text-align: center;
+  border-radius: 16px;
+  background: var(--success-soft);
+  border: 1px solid var(--success);
+}
+
+.lernen-sachkunde-spiel-fertig-text {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Vokabel-Spiele: Spiele-Label in Modusauswahl */
+.lernen-modus-spiele-label {
+  margin: 20px 0 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  grid-column: 1 / -1;
+}
+
+.lernen-grid--spiele {
+  margin-top: 0;
+}
+
+/* Wortpaare finden (Memory auf Zeit) */
+.lernen-wortpaare {
+  margin-top: 12px;
+}
+
+.lernen-wortpaare-anleitung {
+  margin: 0 0 16px;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+}
+
+.lernen-wortpaare-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.lernen-wortpaare-karte {
+  min-height: 72px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.lernen-wortpaare-karte:hover:not(:disabled) {
+  background: var(--bg-card);
+  border-color: var(--border-accent);
+  transform: scale(1.02);
+}
+
+.lernen-wortpaare-karte:disabled {
+  cursor: default;
+}
+
+.lernen-wortpaare-karte--ausgewaehlt {
+  background: var(--accent);
+  border-color: var(--accent-strong);
+  color: var(--text-on-accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.lernen-wortpaare-karte--getroffen {
+  background: var(--success-soft);
+  border-color: var(--success);
+  color: var(--text-primary);
+  cursor: default;
+}
+
+.lernen-wortpaare-karte-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lernen-wortpaare-timer {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Auswertung: Zeit & Platz */
+.lernen-auswertung-zeit,
+.lernen-auswertung-platz {
+  margin: 8px 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Rennen: Schwierigkeit wählen */
+.lernen-rennen-schwierigkeit {
+  margin-top: 12px;
+}
+
+.lernen-rennen-difficulty-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.lernen-rennen-difficulty-buttons .lernen-tile {
+  min-width: 120px;
+}
+
+/* Rennen: Rennstrecke mit echten Autos */
+.lernen-rennen {
+  margin-top: 12px;
+}
+
+.lernen-rennen-track-wrap {
+  position: relative;
+  margin-bottom: 24px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.lernen-rennen-track {
+  display: flex;
+  flex-direction: column;
+  min-height: 100px;
+  background: linear-gradient(180deg, #2d3748 0%, #1a202c 100%);
+}
+
+.lernen-rennen-track-lane {
+  position: relative;
+  flex: 1;
+  min-height: 48px;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent 8px,
+    rgba(255, 255, 255, 0.12) 8px,
+    rgba(255, 255, 255, 0.12) 10px
+  );
+}
+
+.lernen-rennen-track-lane--user {
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.lernen-rennen-track-mitte {
+  height: 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    #f6e05e 0,
+    #f6e05e 12px,
+    transparent 12px,
+    transparent 24px
+  );
+}
+
+.lernen-rennen-auto {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 32px;
+  transition: left 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lernen-rennen-auto-svg {
+  width: 40px;
+  height: 20px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.lernen-rennen-auto--user .lernen-rennen-auto-svg {
+  color: var(--accent);
+}
+
+.lernen-rennen-auto--gegner .lernen-rennen-auto-svg {
+  color: #94a3b8;
+}
+
+.lernen-rennen-auto-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.lernen-rennen-ziel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.15) 100%);
+  border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.lernen-rennen-ziel-flag {
+  font-size: 1.5rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
+/* Glücksrad */
+.lernen-glücksrad {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.lernen-glücksrad-rad {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    var(--accent-soft) 0deg 45deg,
+    var(--bg-elevated) 45deg 90deg,
+    var(--accent-soft) 90deg 135deg,
+    var(--bg-elevated) 135deg 180deg,
+    var(--accent-soft) 180deg 225deg,
+    var(--bg-elevated) 225deg 270deg,
+    var(--accent-soft) 270deg 315deg,
+    var(--bg-elevated) 315deg 360deg
+  );
+  border: 4px solid var(--border-accent);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: transform 0.1s linear;
+}
+
+.lernen-glücksrad-segmente {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.lernen-glücksrad-segment-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 76px;
+  margin-left: -38px;
+  margin-top: -11px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+}
+
+.lernen-glücksrad-rad--spinning {
+  animation: lernenGlücksradSpin 4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes lernenGlücksradSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(1800deg); }
+}
+
+.lernen-glücksrad-drehen {
+  padding: 14px 28px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.lernen-glücksrad-drehen:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.lernen-glücksrad-drehen:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.lernen-glücksrad-frage {
+  position: relative;
+  text-align: left;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.lernen-glücksrad-richtig {
+  position: absolute;
+  left: 50%;
+  top: -12px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: var(--success);
+  color: white;
+  font-weight: 700;
+  font-size: 1.1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  animation: lernenGlücksradRichtig 1.2s ease-out;
+  z-index: 10;
+}
+
+.lernen-glücksrad-richtig-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  font-size: 1.2rem;
+}
+
+@keyframes lernenGlücksradRichtig {
+  0% {
+    transform: translateX(-50%) scale(0.3);
+    opacity: 0;
+  }
+  25% {
+    transform: translateX(-50%) scale(1.15);
+    opacity: 1;
+  }
+  80% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 0;
+  }
+}

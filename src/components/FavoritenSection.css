@@ -1,0 +1,209 @@
+.favoriten-section {
+  flex-shrink: 0;
+  padding: 24px 12px 32px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.favoriten-section--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.favoriten-heading {
+  margin: 0 0 20px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.favoriten-viewport {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.favoriten-track {
+  display: flex;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.favoriten-card {
+  flex: 0 0 10%;
+  min-width: 0;
+  min-height: 120px;
+  padding: 20px;
+  background: var(--bg-card);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px var(--shadow);
+  border: 1px solid var(--border-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 4px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+@media (hover: hover) {
+  .favoriten-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px var(--shadow), 0 0 0 1px var(--border-accent);
+    border-color: rgba(107, 124, 246, 0.5);
+  }
+}
+
+.favoriten-card:first-child {
+  margin-left: 0;
+}
+
+.favoriten-card-placeholder {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.favoriten-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+@media (max-width: 1023px) {
+  .favoriten-nav {
+    margin-top: 10px;
+  }
+}
+
+.favoriten-nav-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.favoriten-nav-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--text-primary);
+}
+
+.favoriten-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.favoriten-dots {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.favoriten-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background: var(--border);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.favoriten-dot:hover {
+  background: var(--text-secondary);
+}
+
+.favoriten-dot--active {
+  background: var(--accent);
+  transform: scale(1.2);
+}
+
+/* Responsive: Anzahl Karten pro Seite per Container */
+@media (max-width: 1023px) {
+  .favoriten-section {
+    padding: 16px 0 20px;
+  }
+
+  .favoriten-section + .favoriten-section {
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+  }
+
+  .favoriten-heading {
+    font-size: 1.25rem;
+    margin-bottom: 14px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  .favoriten-viewport {
+    border-radius: 14px;
+  }
+
+  .favoriten-card {
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 479px) {
+  .favoriten-section {
+    padding: 14px 0 18px;
+  }
+
+  .favoriten-heading {
+    font-size: 1.15rem;
+    margin-bottom: 12px;
+  }
+
+  .favoriten-card {
+    min-height: 100px;
+    padding: 16px;
+  }
+
+  .favoriten-dot {
+    width: 8px;
+    height: 8px;
+  }
+
+  .favoriten-nav-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .favoriten-card {
+    margin: 0 6px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .favoriten-section {
+    padding: 32px 24px 40px;
+  }
+
+  .favoriten-heading {
+    font-size: 1.75rem;
+    margin-bottom: 24px;
+  }
+
+  .favoriten-card {
+    min-height: 140px;
+    margin: 0 8px;
+  }
+}
