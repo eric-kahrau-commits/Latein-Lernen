@@ -1,0 +1,638 @@
+/* ========================================
+   RESPONSIVE MOBILE-FIRST OVERRIDES (Phase 4)
+   Breakpoints: 640px (Tablet), 1024px (Desktop)
+   ========================================== */
+
+/* ========================================
+   GENERAL MOBILE OPTIMIZATIONS
+   ========================================== */
+
+/* Responsive Hero Sections – ohne !important, Seiten-CSS kann überschreiben */
+.hero-section,
+.page-header,
+.ki-page-header,
+.home-hero,
+.page-title-section {
+  padding: 20px 16px;
+  margin-bottom: 16px;
+}
+
+.hero-section h1,
+.page-header h1,
+.home-hero-title,
+.page-title {
+  font-size: clamp(1.5rem, 6vw, 2.5rem);
+  line-height: 1.2;
+  margin-bottom: 12px;
+  word-break: break-word;
+}
+
+.hero-section p,
+.page-header p,
+.home-hero-tagline,
+.page-subtitle {
+  font-size: clamp(0.9rem, 3vw, 1.1rem);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+/* ========================================
+   MOBILE BUTTON OPTIMIZATION
+   ========================================== */
+
+button, .btn, input[type="button"], input[type="submit"] {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 12px 16px;
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  border-radius: var(--radius-sm, 10px);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  transition: all 200ms ease-out;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  user-select: none;
+}
+
+button:active, .btn:active {
+  transform: scale(0.95);
+}
+
+/* Button Group Spacing */
+.button-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.button-group > * {
+  flex: 1;
+  min-width: 100px;
+}
+
+@media (min-width: 640px) {
+  .button-group {
+    gap: 12px;
+  }
+
+  .button-group > * {
+    min-width: 120px;
+  }
+}
+
+/* ========================================
+   MOBILE CARD OPTIMIZATION
+   ========================================== */
+
+.card,
+.item-card,
+.stat-card,
+.lernset-card,
+.shop-item,
+.setting-item {
+  padding: var(--space-lg, 16px);
+  border-radius: var(--radius-sm, 10px);
+  margin-bottom: var(--space-md, 12px);
+  transition: all 200ms ease-out;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+}
+
+.card p, .item-card p,
+.stat-card p, .lernset-card p {
+  font-size: clamp(0.85rem, 2vw, 1rem);
+  margin: 4px 0;
+}
+
+.card:active, .item-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent, #6b7cf6) 15%, transparent);
+}
+
+@media (min-width: 640px) {
+  .card,
+  .item-card,
+  .stat-card,
+  .lernset-card,
+  .shop-item,
+  .setting-item {
+    padding: var(--space-xl, 20px);
+    border-radius: var(--radius-md, 12px);
+    margin-bottom: var(--space-lg, 14px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .card,
+  .item-card,
+  .stat-card,
+  .lernset-card,
+  .shop-item,
+  .setting-item {
+    padding: var(--space-xl, 24px);
+    border-radius: var(--radius-md, 14px);
+    margin-bottom: var(--space-lg, 16px);
+  }
+}
+
+/* ========================================
+   MOBILE GRID OPTIMIZATION
+   ========================================== */
+
+/* Single Column on Mobile */
+.grid, .items-grid, .card-grid, .lernsets-grid, .stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md, 12px);
+  margin-bottom: var(--space-lg, 16px);
+}
+
+@media (min-width: 640px) {
+  .grid, .items-grid, .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-lg, 14px);
+  }
+
+  .lernsets-grid, .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid, .items-grid, .card-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-lg, 16px);
+  }
+
+  .lernsets-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ========================================
+   MOBILE FORM OPTIMIZATION
+   ========================================== */
+
+input, textarea, select, .input-field {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm, 10px);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  margin-bottom: var(--space-md, 12px);
+  transition: all 200ms ease-out;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--primary-base);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 20%, transparent);
+  background: var(--bg-secondary);
+}
+
+textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  font-size: clamp(0.85rem, 2vw, 0.95rem);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+@media (min-width: 640px) {
+  input, textarea, select {
+    padding: 12px 14px !important;
+    border-radius: 12px;
+    margin-bottom: 14px !important;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  input, textarea, select {
+    padding: 12px 16px !important;
+    border-radius: 12px;
+    margin-bottom: 16px !important;
+  }
+}
+
+/* ========================================
+   MOBILE TAB OPTIMIZATION
+   ========================================== */
+
+.tabs, .tab-bar {
+  display: flex;
+  gap: 8px !important;
+  overflow-x: auto;
+  padding: 12px 16px !important;
+  margin-bottom: 16px !important;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab, .tab-item, .tab-button {
+  min-height: 36px;
+  padding: 8px 12px !important;
+  white-space: nowrap;
+  border-radius: 8px;
+  font-size: clamp(0.8rem, 2vw, 0.95rem);
+  font-weight: 600;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+
+.tab.active, .tab-item.active, .tab-button.active {
+  background: var(--primary-gradient);
+  color: var(--text-on-accent);
+  border-color: var(--primary-base);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+@media (min-width: 640px) {
+  .tabs, .tab-bar {
+    gap: 10px !important;
+    padding: 14px 20px !important;
+  }
+
+  .tab, .tab-item, .tab-button {
+    padding: 10px 16px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tabs, .tab-bar {
+    gap: 12px !important;
+    padding: 16px 24px !important;
+    overflow-x: visible;
+  }
+
+  .tab, .tab-item, .tab-button {
+    padding: 10px 20px !important;
+  }
+}
+
+/* ========================================
+   MOBILE LIST OPTIMIZATION
+   ========================================== */
+
+.list, .items-list, .favorites-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px !important;
+  margin-bottom: 16px !important;
+}
+
+.list-item, .list-item-content {
+  padding: 12px !important;
+  border-radius: 10px;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 200ms ease-out;
+  cursor: pointer;
+}
+
+.list-item:active {
+  transform: scale(0.97);
+}
+
+.list-item-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.list-item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.list-item-title {
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.list-item-subtitle {
+  font-size: clamp(0.75rem, 1.5vw, 0.9rem);
+  color: var(--text-muted);
+}
+
+@media (min-width: 640px) {
+  .list, .items-list, .favorites-list {
+    gap: 12px !important;
+  }
+
+  .list-item, .list-item-content {
+    padding: 14px !important;
+    border-radius: 12px;
+  }
+}
+
+/* ========================================
+   MOBILE ICON OPTIMIZATION
+   ========================================== */
+
+.icon, .icon-mobile, svg {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-large, .icon-lg {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-xl {
+  width: 28px;
+  height: 28px;
+}
+
+.icon-xxl {
+  width: 32px;
+  height: 32px;
+}
+
+.icon-header, .page-header-icon {
+  width: 28px;
+  height: 28px;
+}
+
+@media (min-width: 640px) {
+  .icon-header, .page-header-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .icon-xxl {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .icon-xxl {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+/* ========================================
+   MOBILE TEXT OPTIMIZATION
+   ========================================== */
+
+h1, .h1 { font-size: clamp(1.5rem, 6vw, 2.5rem); }
+h2, .h2 { font-size: clamp(1.25rem, 5vw, 2rem); }
+h3, .h3 { font-size: clamp(1.1rem, 4vw, 1.5rem); }
+h4, .h4 { font-size: clamp(1rem, 3vw, 1.25rem); }
+p, .body-text { font-size: clamp(0.9rem, 2vw, 1rem); }
+.small, .text-sm { font-size: clamp(0.75rem, 1.5vw, 0.9rem); }
+
+/* ========================================
+   MOBILE SPACING OPTIMIZATION
+   ========================================== */
+
+.page, .page-container {
+  padding: 12px 0 !important;
+}
+
+.page-content, .section {
+  padding: 0 16px !important;
+  margin-bottom: 16px !important;
+}
+
+.section-header {
+  padding: 16px 16px 12px !important;
+  margin-bottom: 12px !important;
+}
+
+@media (min-width: 640px) {
+  .page, .page-container {
+    padding: 16px 0 !important;
+  }
+
+  .page-content, .section {
+    padding: 0 20px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .section-header {
+    padding: 20px 20px 14px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page, .page-container {
+    padding: 20px 0 !important;
+  }
+
+  .page-content, .section {
+    padding: 0 24px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .section-header {
+    padding: 24px 24px 16px !important;
+  }
+}
+
+/* ========================================
+   MOBILE ANIMATION OPTIMIZATION
+   ========================================== */
+
+/* Reduce animation duration on mobile for snappier feel */
+@media (max-width: 639px) {
+  .animate-fade-in,
+  .animate-slide-in-top,
+  .animate-slide-in-bottom,
+  .animate-bounce-in,
+  .animate-zoom-in {
+    animation-duration: 300ms !important;
+  }
+
+  .float { animation-duration: 3s !important; }
+  .pulse-glow { animation-duration: 1.5s !important; }
+}
+
+/* ========================================
+   TOUCH DEVICE OPTIMIZATIONS
+   ========================================== */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Remove hover effects on touch */
+  .card:hover,
+  button:hover,
+  .tab:hover,
+  .list-item:hover {
+    transform: none !important;
+  }
+
+  /* But keep active states */
+  .card:active,
+  button:active,
+  .list-item:active {
+    transform: scale(0.95) !important;
+  }
+
+  /* Better touch feedback */
+  button {
+    transition: all 100ms ease-out;
+  }
+
+  /* Remove pointer-based animations */
+  .hover-lift {
+    animation: none !important;
+  }
+}
+
+/* ========================================
+   HIGH DPI / RETINA DISPLAY
+   ========================================== */
+
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .card, button, input, select {
+    border-width: 0.5px;
+  }
+}
+
+/* ========================================
+   LANDSCAPE ORIENTATION (Mobile)
+   ========================================== */
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .page, .page-container {
+    padding: 8px 0 !important;
+  }
+
+  .page-content, .section {
+    padding: 0 12px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .section-header {
+    padding: 12px 12px 8px !important;
+  }
+
+  h1, .h1 { font-size: 1.4rem; }
+  h2, .h2 { font-size: 1.2rem; }
+
+  .card, button, input {
+    padding: 10px 12px !important;
+  }
+}
+
+/* ========================================
+   VERY SMALL SCREENS (< 375px)
+   ========================================== */
+
+@media (max-width: 374px) {
+  .page-content, .section {
+    padding: 0 12px !important;
+  }
+
+  .section-header {
+    padding: 12px 12px 10px !important;
+  }
+
+  h1, .h1 { font-size: clamp(1.3rem, 5vw, 2rem); }
+  h2, .h2 { font-size: clamp(1.1rem, 4vw, 1.5rem); }
+
+  .card {
+    padding: 12px !important;
+  }
+
+  button {
+    padding: 10px 12px !important;
+    font-size: 0.9rem;
+  }
+}
+
+/* ========================================
+   VISIBILITY UTILITIES
+   ========================================== */
+
+.show-mobile { display: none; }
+.show-tablet { display: none; }
+.show-desktop { display: none; }
+
+@media (max-width: 639px) {
+  .show-mobile { display: block; }
+  .hide-mobile { display: none; }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .show-tablet { display: block; }
+  .hide-tablet { display: none; }
+}
+
+@media (min-width: 1024px) {
+  .show-desktop { display: block; }
+  .hide-desktop { display: none; }
+}
+
+/* ========================================
+   REDUCE MOTION (Phase 6 – konsistent mit responsive-design.css)
+   ========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Theme kommt ausschließlich aus index.css (data-theme) – keine prefers-color-scheme Overrides */
+
+/* ========================================
+   DESKTOP+ ENHANCEMENTS
+   ========================================== */
+
+@media (min-width: 1440px) {
+  .page-content, .section {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .grid-desktop-4 {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  .grid-desktop-5 {
+    grid-template-columns: repeat(5, 1fr) !important;
+  }
+}

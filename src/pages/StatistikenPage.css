@@ -1,242 +1,572 @@
-.statistik-page {
+/* ===== Statistikseite – Canva-Style Diagramme ===== */
+
+.stat-page {
   padding: 0 0 48px;
-  max-width: 720px;
+  max-width: 820px;
   margin: 0 auto;
+  --stat-chart-1: var(--accent);
+  --stat-chart-2: var(--primary-light, #8b5cf6);
+  --stat-chart-3: var(--streak-accent);
+  --stat-chart-4: var(--success);
+  --stat-chart-5: var(--warning);
 }
 
-.statistik-section {
-  margin-bottom: 36px;
+.stat-header {
+  margin-bottom: 32px;
 }
 
-.statistik-heading {
-  margin: 0 0 16px;
-  font-size: 1.25rem;
-  font-weight: 700;
+.stat-title {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.stat-intro {
+  margin: 0;
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-relaxed);
+  color: var(--text-secondary);
+}
+
+/* ----- Karten pro Diagramm ----- */
+
+.stat-card {
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-2xl);
+  border-color: var(--border-accent);
+  box-shadow: 0 4px 24px var(--shadow);
+}
+
+.stat-card-title {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
   color: var(--text-primary);
 }
 
-.statistik-hinweis {
-  margin: 0 0 16px;
+.stat-card-hint {
+  margin: 0 0 var(--space-xl);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  color: var(--text-secondary);
+}
+
+.stat-chart {
+  min-height: 120px;
+}
+
+.stat-empty {
+  margin: 0;
+  padding: 24px 0;
   font-size: 0.9375rem;
   color: var(--text-secondary);
-  line-height: 1.5;
+  text-align: center;
 }
 
-/* Kalender */
-.statistik-kalender-wrap {
-  background: var(--bg-card);
-  border: 1px solid var(--border-accent);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 2px 12px var(--shadow);
+.stat-conclusion {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border-radius: 12px;
+  border-left: 3px solid var(--accent);
 }
 
-.statistik-kalender-nav {
+/* ----- Monats-Navigation ----- */
+
+.stat-month-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  gap: 12px;
 }
 
-.statistik-nav-btn {
-  width: 40px;
-  height: 40px;
+.stat-nav-btn {
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--bg-elevated);
   color: var(--text-primary);
   font-size: 1.25rem;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.2s, transform 0.1s;
 }
 
-.statistik-nav-btn:hover {
+.stat-nav-btn:hover {
   background: var(--border-accent);
 }
 
-.statistik-kalender-month {
-  font-size: 1.0625rem;
-  font-weight: 600;
+.stat-nav-btn:active {
+  transform: scale(0.97);
+}
+
+.stat-month-label {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
 }
 
-.statistik-kalender-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-}
+/* ----- Filter (Lektion / Modus) ----- */
 
-.statistik-kalender-wochentag {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-align: center;
-  padding: 4px 0;
-}
-
-.statistik-kalender-tag {
-  aspect-ratio: 1;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8125rem;
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-}
-
-.statistik-kalender-tag--leer {
-  opacity: 0.4;
-}
-
-.statistik-kalender-tag--aktiv {
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.statistik-kalender-tag--heute {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.statistik-kalender-tag-num {
-  display: block;
-}
-
-.statistik-kalender-tag-min {
-  font-size: 0.7rem;
-  opacity: 0.9;
-}
-
-/* Balkendiagramme */
-.statistik-balken-wrap {
-  background: var(--bg-card);
-  border: 1px solid var(--border-accent);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 2px 12px var(--shadow);
-}
-
-.statistik-leer {
-  margin: 0;
-  font-size: 0.9375rem;
-  color: var(--text-secondary);
-  text-align: center;
-  padding: 24px;
-}
-
-.statistik-balken-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.statistik-balken-row {
-  display: grid;
-  grid-template-columns: 1fr 2fr 60px;
-  align-items: center;
-  gap: 12px;
-}
-
-.statistik-balken-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.statistik-balken-track {
-  height: 24px;
-  background: var(--bg-elevated);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.statistik-balken-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent) 0%, #8b9aff 100%);
-  border-radius: 8px;
-  transition: width 0.4s ease;
-}
-
-.statistik-balken-fill--prozent {
-  max-width: 100%;
-}
-
-.statistik-balken-wert {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-align: right;
-}
-
-/* Treffer-Auswahl */
-.statistik-treffer-auswahl {
+.stat-filters {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-bottom: 20px;
 }
 
-.statistik-select-wrap label {
+.stat-filter label {
   display: block;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-secondary);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-sm);
 }
 
-.statistik-select {
+.stat-select {
   width: 100%;
   padding: 12px 14px;
-  font-size: 1rem;
+  font-size: 0.9375rem;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--bg-page);
   color: var(--text-primary);
   cursor: pointer;
 }
 
-.statistik-select:focus {
+.stat-select:focus {
   outline: none;
   border-color: var(--accent);
 }
 
-.statistik-treffer-diagramm {
-  margin-top: 0;
+/* ===== Horizontale Balken (Lektionen, Trefferquote Ø, Sessions) ===== */
+
+.stat-bars--horizontal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.statistik-treffer-balken .statistik-balken-row {
-  grid-template-columns: 100px 1fr 50px;
+.stat-bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 2fr) 56px;
+  align-items: center;
+  gap: 14px;
 }
 
-@media (max-width: 600px) {
-  .statistik-treffer-auswahl {
-    grid-template-columns: 1fr;
+.stat-bar-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-bar-track {
+  height: 28px;
+  background: var(--bg-elevated);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  min-width: 4px;
+}
+
+.stat-bar-value {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+/* ===== Vertikale Balken (Tage, Wochentag, Modi, Wochen) ===== */
+
+.stat-bars--vertical {
+  display: grid;
+  grid-template-columns: repeat(var(--bars, 7), 1fr);
+  gap: 8px;
+  align-items: flex-end;
+  min-height: 200px;
+  padding: 0 4px;
+}
+
+.stat-bars--vertical.stat-bars--7,
+.stat-bars--vertical.stat-bars--4 {
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.stat-bars--vertical.stat-bars--weeks {
+  min-height: 180px;
+}
+
+.stat-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  height: 180px;
+}
+
+.stat-bar-fill-vert {
+  width: 100%;
+  min-height: 6px;
+  border-radius: 10px 10px 0 0;
+  transition: height 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  max-height: 130px;
+}
+
+.stat-bar-fill-vert.stat-bar-fill--percent {
+  max-height: 120px;
+}
+
+.stat-bar-col-value {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stat-bar-col-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.stat-bar-col-label--week {
+  font-size: 0.65rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== 30-Tage-Aktivität (Streak-Grid) ===== */
+
+.stat-chart--streak {
+  min-height: auto;
+}
+
+.stat-streak-grid {
+  display: grid;
+  grid-template-columns: repeat(30, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.stat-streak-cell {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  transition: opacity 0.2s;
+}
+
+.stat-streak-cell--active {
+  background: linear-gradient(180deg, var(--stat-chart-3) 0%, var(--stat-chart-4) 100%);
+}
+
+.stat-streak-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+/* ===== Gruppierte Balken (Erste vs. beste) ===== */
+
+.stat-bars--grouped {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.stat-grouped-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1fr;
+  align-items: center;
+  gap: 16px;
+}
+
+.stat-grouped-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-grouped-bar-wrap {
+  display: grid;
+  grid-template-columns: 52px 1fr 44px;
+  align-items: center;
+  gap: 10px;
+}
+
+.stat-grouped-legend {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ----- Responsive: Mobile & Tablet ----- */
+
+@media (max-width: 768px) {
+  .stat-page {
+    padding: 12px 16px 40px;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
-  .statistik-balken-row {
-    grid-template-columns: 1fr 80px;
+  .stat-header {
+    margin-bottom: 24px;
+  }
+
+  .stat-title {
+    font-size: 1.5rem;
+  }
+
+  .stat-intro {
+    font-size: 0.9375rem;
+  }
+
+  .stat-card {
+    padding: 18px 16px;
+    margin-bottom: 24px;
+    border-radius: 16px;
+  }
+
+  .stat-card-title {
+    font-size: 1.1rem;
+    margin-bottom: 6px;
+  }
+
+  .stat-card-hint {
+    font-size: 0.875rem;
+    margin-bottom: 16px;
+    line-height: 1.45;
+  }
+
+  .stat-chart {
+    min-height: 100px;
+  }
+
+  .stat-conclusion {
+    margin-top: 14px;
+    padding: 12px 14px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  /* Horizontale Balken: Label oben, darunter Balken + Wert nebeneinander */
+  .stat-bar-row {
+    grid-template-columns: 1fr 44px;
+    grid-template-rows: auto auto;
+    gap: 6px 8px;
+  }
+
+  .stat-bar-label {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stat-bar-track {
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+    height: 24px;
+  }
+
+  .stat-bar-value {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    justify-self: end;
+    font-size: 0.8125rem;
+  }
+
+  /* Vertikale Balken: weniger Höhe, kleinere Schrift */
+  .stat-bars--vertical {
+    min-height: 160px;
+    gap: 6px;
+    padding: 0 2px;
+  }
+
+  .stat-bar-col {
+    height: 160px;
+  }
+
+  .stat-bar-fill-vert {
+    max-height: 110px;
+  }
+
+  .stat-bar-col-value,
+  .stat-bar-col-label {
+    font-size: 0.65rem;
+  }
+
+  .stat-bar-col-label--week {
+    font-size: 0.6rem;
+  }
+
+  /* Tage-Diagramm: horizontal scrollbar auf kleinen Screens */
+  .stat-chart--days {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -4px;
+    padding: 0 4px;
+  }
+
+  .stat-bars--scroll-mobile {
+    min-width: calc(var(--bars, 28) * 22px);
+    width: max-content;
+  }
+
+  .stat-bars--scroll-mobile .stat-bar-col {
+    min-width: 20px;
+    width: 22px;
+  }
+
+  /* 7/4 Balken (Wochentag, Modi): zentriert, volle Breite nutzen */
+  .stat-bars--vertical.stat-bars--7,
+  .stat-bars--vertical.stat-bars--4 {
+    max-width: 100%;
+  }
+
+  .stat-bars--vertical.stat-bars--weeks .stat-bar-col-label--week {
+    font-size: 0.6rem;
+  }
+
+  /* 30-Tage-Streak: scrollbar wenn nötig, lesbare Zellgröße */
+  .stat-chart--streak {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -2px;
+    padding: 0 2px;
+  }
+
+  .stat-streak-grid {
+    min-width: min-content;
+    width: max-content;
+    margin-left: auto;
+    margin-right: auto;
+    gap: 3px;
+    grid-template-columns: repeat(30, minmax(10px, 12px));
+  }
+
+  .stat-streak-cell {
+    min-width: 10px;
+    min-height: 10px;
+    border-radius: 4px;
+  }
+
+  .stat-streak-legend {
+    font-size: 0.65rem;
+    margin-top: 6px;
+  }
+
+  /* Gruppierte Balken (Erste vs. beste) */
+  .stat-grouped-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .stat-grouped-bar-wrap {
+    grid-template-columns: 42px 1fr 36px;
     gap: 8px;
   }
 
-  .statistik-balken-label {
-    grid-column: 1 / -1;
+  .stat-grouped-legend {
+    font-size: 0.7rem;
   }
 
-  .statistik-balken-track {
-    grid-column: 1;
+  .stat-bars--grouped .stat-bar-label {
+    white-space: normal;
+    word-break: break-word;
+    overflow: visible;
+    text-overflow: unset;
+  }
+}
+
+/* Sehr kleine Viewports (z. B. schmales Handy) */
+@media (max-width: 480px) {
+  .stat-page {
+    padding: 10px 12px 32px;
   }
 
-  .statistik-balken-wert {
-    grid-column: 2;
-    grid-row: 2;
+  .stat-card {
+    padding: 14px 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card-title {
+    font-size: 1rem;
+  }
+
+  .stat-card-hint {
+    font-size: 0.8125rem;
+  }
+
+  .stat-bar-row {
+    gap: 4px 8px;
+  }
+
+  .stat-bar-track {
+    height: 22px;
+  }
+
+  .stat-bars--scroll-mobile .stat-bar-col {
+    min-width: 18px;
+    max-width: 24px;
+  }
+
+  .stat-bar-col {
+    height: 150px;
+  }
+
+  .stat-bar-fill-vert {
+    max-height: 100px;
+  }
+
+  .stat-streak-grid {
+    grid-template-columns: repeat(30, minmax(8px, 10px));
+    gap: 2px;
+  }
+
+  .stat-streak-cell {
+    min-width: 8px;
+    min-height: 8px;
+  }
+
+  .stat-conclusion {
+    padding: 10px 12px;
+    font-size: 0.8125rem;
+  }
+
+  .stat-month-nav {
+    margin-bottom: 14px;
+  }
+
+  .stat-nav-btn {
+    width: 40px;
+    height: 40px;
   }
 }

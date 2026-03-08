@@ -7,18 +7,28 @@ import {
   type Lernset,
   type VokabelEintrag,
 } from '../data/lernsets'
+import { getFaecher } from '../data/faecher'
 import { getFavoritenIds, toggleFavorit } from '../data/favoriten'
 import { StarIcon, StarIconFilled } from '../components/icons'
 import './NeuPage.css'
 
 const initialEmptyRow: VokabelEintrag = { vokabel: '', uebersetzung: '' }
 
-export function NeuPage() {
+export interface NeuPageProps {
+  /** Start direkt im Erstellen-Modus (z. B. von KI-Hub) */
+  initialMode?: 'list' | 'create'
+  /** Optional: Zurück-Callback, wenn von Hub eingebettet (zeigt dann „Zurück“ statt nur Abbrechen) */
+  onBack?: () => void
+}
+
+export function NeuPage({ initialMode = 'list', onBack }: NeuPageProps = {}) {
   const [sets, setSets] = useState<Lernset[]>(() => getLernsets())
   const [favoritenIds, setFavoritenIds] = useState<string[]>(() => getFavoritenIds())
-  const [mode, setMode] = useState<'list' | 'create'>('list')
+  const [mode, setMode] = useState<'list' | 'create'>(initialMode)
   const [setName, setSetName] = useState('')
   const [items, setItems] = useState<VokabelEintrag[]>([{ ...initialEmptyRow }])
+  const [selectedFachId, setSelectedFachId] = useState<string>('')
+  const faecher = getFaecher()
 
   const refreshSets = useCallback(() => {
     setSets(getLernsets())
@@ -45,15 +55,24 @@ export function NeuPage() {
     const validItems = items.filter((i) => i.vokabel.trim() || i.uebersetzung.trim())
     if (!name) return
     if (validItems.length === 0) return
-    saveLernset({ name, items: validItems })
+    if (!selectedFachId || !faecher.some((f) => f.id === selectedFachId)) return
+    saveLernset({ name, items: validItems, fachId: selectedFachId })
     refreshSets()
-    setMode('list')
+    if (onBack) {
+      onBack()
+    } else {
+      setMode('list')
+    }
     setSetName('')
     setItems([{ ...initialEmptyRow }])
   }
 
   const handleCancelCreate = () => {
-    setMode('list')
+    if (onBack) {
+      onBack()
+    } else {
+      setMode('list')
+    }
     setSetName('')
     setItems([{ ...initialEmptyRow }])
   }
@@ -66,7 +85,7 @@ export function NeuPage() {
   }
 
   const validItemsCount = items.filter((i) => i.vokabel.trim() || i.uebersetzung.trim()).length
-  const canSave = setName.trim().length > 0 && validItemsCount > 0
+  const canSave = setName.trim().length > 0 && validItemsCount > 0 && !!selectedFachId
 
   if (mode === 'create') {
     return (
@@ -75,7 +94,7 @@ export function NeuPage() {
           <h1 className="page-title">Neues Lernset erstellen</h1>
           <div className="neu-header-actions">
             <button type="button" className="neu-btn neu-btn--secondary" onClick={handleCancelCreate}>
-              Abbrechen
+              {onBack ? 'Zurück' : 'Abbrechen'}
             </button>
             <button
               type="button"
@@ -88,7 +107,7 @@ export function NeuPage() {
           </div>
         </header>
 
-        <div className="neu-create">
+          <div className="neu-create">
           <div className="neu-set-name-block">
             <label htmlFor="neu-set-name" className="neu-label">
               Name des Lernsets
@@ -102,6 +121,27 @@ export function NeuPage() {
               placeholder="z. B. Lektion 1 – Verben"
               maxLength={100}
             />
+          </div>
+
+          <div className="neu-fach-block">
+            <label htmlFor="neu-fach-select" className="neu-label">
+              Fach (Ordner) <span className="neu-required">*</span>
+            </label>
+            {faecher.length === 0 ? (
+              <p className="neu-fach-hint">Erstelle zuerst ein Fach unter „Erstellen“ → „Fächer erstellen“, um Lernsets speichern zu können.</p>
+            ) : (
+              <select
+                id="neu-fach-select"
+                className="neu-input neu-fach-select"
+                value={selectedFachId}
+                onChange={(e) => setSelectedFachId(e.target.value)}
+              >
+                <option value="">— Fach wählen —</option>
+                {faecher.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="neu-vokabeln-block">

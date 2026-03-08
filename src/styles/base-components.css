@@ -1,0 +1,137 @@
+/* ========================================
+   BASIS-KOMPONENTEN (Phase 5)
+   Einheitliche Karten, Buttons, Listenzeilen
+   ======================================== */
+
+/* ----- Karten (Card / Panel) ----- */
+.card,
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.card:active,
+.panel:active {
+  transition: transform 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .card,
+  .panel {
+    padding: var(--space-xl);
+  }
+}
+
+/* ----- Buttons: Primär (Accent) ----- */
+.btn,
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+  padding: 12px 20px;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  color: var(--text-on-accent);
+  background: var(--primary-gradient);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.btn:hover,
+.btn-primary:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.btn:active,
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+/* ----- Buttons: Sekundär (Outline / Ghost) ----- */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+  padding: 12px 20px;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-elevated);
+  transform: scale(1.02);
+}
+
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+/* ----- Listenzeilen: Titel + Meta + Aktion ----- */
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-height: var(--touch-target);
+}
+
+.list-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.list-row-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-row-meta {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.list-row-action {
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btn-primary,
+  .btn-secondary {
+    transition: none;
+  }
+}

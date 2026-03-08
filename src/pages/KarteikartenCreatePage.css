@@ -1,0 +1,327 @@
+.karteikarten-create-page {
+  padding: 0 0 40px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.karteikarten-create-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.karteikarten-create-header .page-title {
+  margin: 0;
+}
+
+.karteikarten-create-header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.karteikarten-header-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.karteikarten-create-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.karteikarten-cards-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.karteikarten-cards-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.karteikarten-create-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.karteikarten-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.karteikarten-card-editor {
+  padding: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.karteikarten-card-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.karteikarten-card-number {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.karteikarten-card-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 600px) {
+  .karteikarten-card-sides {
+    grid-template-columns: 1fr;
+  }
+}
+
+.karteikarten-card-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.karteikarten-input {
+  max-width: 100%;
+}
+
+.karteikarten-char-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.karteikarten-save-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Speichern-Dialog (Popup) */
+.karteikarten-save-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.karteikarten-save-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+.karteikarten-save-dialog {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  padding: 24px;
+  background: var(--bg-elevated);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.karteikarten-save-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.karteikarten-save-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.karteikarten-save-name {
+  width: 100%;
+}
+
+.karteikarten-save-fach-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.karteikarten-save-fach-row .neu-fach-select {
+  width: 100%;
+}
+
+.karteikarten-save-error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--error, #dc2626);
+}
+
+.karteikarten-save-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.karteikarten-textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.karteikarten-file-input {
+  display: none;
+}
+
+.karteikarten-image-row {
+  margin-top: 8px;
+}
+
+.karteikarten-add-img {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+}
+
+.karteikarten-add-img-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.karteikarten-image-preview {
+  position: relative;
+  display: inline-block;
+  margin-top: 8px;
+}
+
+.karteikarten-preview-img {
+  max-width: 120px;
+  max-height: 80px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+/* Große Bildvorschau auf der Erstellseite */
+.karteikarten-image-preview--large {
+  margin-top: 8px;
+}
+
+.karteikarten-image-preview--large .karteikarten-preview-img {
+  max-width: 220px;
+  max-height: 180px;
+  border-radius: 12px;
+}
+
+.karteikarten-remove-img {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.karteikarten-remove-img:hover {
+  background: var(--error);
+}
+
+.karteikarten-overview-toggle {
+  align-self: flex-start;
+}
+
+.karteikarten-overview {
+  padding: 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.karteikarten-overview-title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.karteikarten-overview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.karteikarten-overview-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-page);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.karteikarten-overview-front,
+.karteikarten-overview-back {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.karteikarten-overview-front {
+  color: var(--text-primary);
+}
+
+.karteikarten-overview-arrow {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.karteikarten-overview-back {
+  color: var(--text-secondary);
+}
+
+.karteikarten-meta-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}

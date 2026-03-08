@@ -2,6 +2,7 @@
   min-height: 100vh;
   padding-top: var(--topbar-height);
   transition: padding-left var(--transition-sidebar);
+  background: var(--bg-page);
 }
 
 @media (min-width: 1024px) {
@@ -12,15 +13,16 @@
 
 .main {
   min-height: calc(100vh - var(--topbar-height));
-  padding: 24px;
+  padding: var(--main-padding-y) var(--main-padding-x);
   background: var(--bg-page);
   animation: contentFade 0.3s ease;
 }
 
-@media (max-width: 1023px) {
-  .main {
-    padding: 12px 10px 20px;
-  }
+/* Innerer Wrapper: max-width für zentrierten Content auf großen Viewports */
+.main-inner {
+  width: 100%;
+  max-width: var(--content-wide);
+  margin: 0 auto;
 }
 
 @keyframes contentFade {

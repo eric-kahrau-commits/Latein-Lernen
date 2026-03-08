@@ -225,6 +225,28 @@
   gap: 8px;
 }
 
+.neu-fach-block {
+  margin-bottom: 20px;
+}
+
+.neu-fach-block .neu-label {
+  margin-bottom: 6px;
+}
+
+.neu-fach-select {
+  max-width: 320px;
+}
+
+.neu-fach-hint {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.neu-required {
+  color: #dc2626;
+}
+
 .neu-label {
   font-size: 0.875rem;
   font-weight: 600;

@@ -5,6 +5,7 @@ import './TopBar.css'
 type TopBarProps = {
   menuOpen: boolean
   onMenuToggle: () => void
+  onCloseMenu?: () => void
 }
 
 export function TopBar({ menuOpen, onMenuToggle }: TopBarProps) {

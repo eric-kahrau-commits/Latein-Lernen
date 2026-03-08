@@ -2,11 +2,11 @@ import { NavLink } from 'react-router-dom'
 import {
   HomeIcon,
   LernenIcon,
-  NeuIcon,
   StatistikenIcon,
   EinstellungenIcon,
   FlameIcon,
   CrownIcon,
+  SparklesIcon,
 } from './icons'
 import { getStreak } from '../data/streak'
 import './Sidebar.css'
@@ -14,7 +14,7 @@ import './Sidebar.css'
 const navItems = [
   { to: '/', label: 'Home', icon: HomeIcon },
   { to: '/lernen', label: 'Lernen', icon: LernenIcon },
-  { to: '/neu', label: 'Neu', icon: NeuIcon },
+  { to: '/ki', label: 'Lernsets & KI', icon: SparklesIcon },
   { to: '/statistiken', label: 'Statistiken', icon: StatistikenIcon },
   { to: '/shop', label: 'Shop', icon: CrownIcon },
   { to: '/einstellungen', label: 'Einstellungen', icon: EinstellungenIcon },

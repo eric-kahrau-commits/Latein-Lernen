@@ -1,0 +1,31 @@
+.offline-banner {
+  position: sticky;
+  top: var(--topbar-height, 56px);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text-primary, #1d1d1f);
+  background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.offline-banner-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  opacity: 0.9;
+}
+
+.offline-banner-text {
+  line-height: 1.35;
+}
+
+@media (max-width: 480px) {
+  .offline-banner {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}

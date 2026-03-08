@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { GitHubIcon } from '../components/icons'
+import { getFeedbackMailtoUrl } from '../data/feedback'
 import './RechtlichesPage.css'
 
 const GITHUB_URL = 'https://github.com/eric-kahrau-commits?tab=repositories'
@@ -22,17 +23,26 @@ export function ImpressumPage() {
 
       <section className="rechtliches-card" aria-labelledby="impressum-kontakt">
         <h2 id="impressum-kontakt" className="rechtliches-heading">
-          Kontakt & Quellcode
+          Kontakt &amp; Quellcode
         </h2>
-        <a
-          href={GITHUB_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rechtliches-link rechtliches-github"
-        >
-          <GitHubIcon className="rechtliches-github-icon" />
-          <span>GitHub – eric-kahrau-commits</span>
-        </a>
+        <div className="rechtliches-links">
+          <a
+            href={getFeedbackMailtoUrl()}
+            className="rechtliches-link"
+            rel="noopener noreferrer"
+          >
+            Feedback geben
+          </a>
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rechtliches-link rechtliches-github"
+          >
+            <GitHubIcon className="rechtliches-github-icon" />
+            <span>GitHub – eric-kahrau-commits</span>
+          </a>
+        </div>
       </section>
 
       <section className="rechtliches-card" aria-labelledby="impressum-haftung">

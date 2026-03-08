@@ -1,0 +1,45 @@
+/* ========================================
+   SEITENSTRUKTUR (Phase 2)
+   Einheitliches Muster: Page-Header, Sections
+   ======================================== */
+
+/* Optionaler Seitenkopf: Titel + Tagline */
+.page-header {
+  margin-bottom: var(--space-xl);
+}
+
+.page-header .page-title {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.page-header .page-subtitle {
+  margin: 0;
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  color: var(--text-secondary);
+}
+
+/* Section: Abstand nach unten für klare visuelle Hierarchie */
+.page-section {
+  margin-bottom: var(--space-xl);
+}
+
+.page-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Sektionstitel (z. B. „Dein Fortschritt“, „Erfolge“) – alias: .section-title (Phase 3) */
+.page-section-title,
+.section-title {
+  margin: 0 0 var(--space-lg);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}

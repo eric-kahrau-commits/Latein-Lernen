@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import confetti from 'canvas-confetti'
 import {
   SUBSTANTIV_DEKLINATIONEN,
@@ -6,8 +7,21 @@ import {
   FAELLE,
 } from '../data/deklinationen'
 import type { DeklinationBeispiel, AdjektivDeklTyp } from '../data/deklinationen'
-import { getLernsets, getLernsetById, type VokabelEintrag } from '../data/lernsets'
-import { addSession, addAttempt, DEKLINATION_LESSON_OPTIONS } from '../data/statistik'
+import {
+  getAiDeklinationenForTyp,
+  getAiDeklinationSets,
+  getAiDeklinationSetById,
+  getAiDeklinationSetsByFach,
+} from '../data/aiDeklinationSets'
+import { getLernsets, getLernsetById, getLernsetsByFach, type VokabelEintrag } from '../data/lernsets'
+import {
+  getKarteikartenSets,
+  getKarteikartenSetById,
+  getKarteikartenSetsByFach,
+  type KarteikartenEintrag,
+} from '../data/karteikartenSets'
+import { getFaecher, getFachById } from '../data/faecher'
+import { addSession, addAttempt, DEKLINATION_LESSON_OPTIONS, getSessionCountByLesson, getAveragePercentByLesson } from '../data/statistik'
 import {
   VERBEN_BEISPIELE,
   VERBEN_IMPERATIV_LESSON_ID,
@@ -21,11 +35,14 @@ import {
   type VerbenTyp,
 } from '../data/verben'
 import { SACHKUNDE_TOPICS, getSachkundeTopic, type SachkundeQuizFrage } from '../data/sachkunde'
+import { GRAMMATIK_TOPICS, getGrammatikTopic, getGrammatikTopicsForKlasse, type Klassenstufe } from '../data/grammatik'
 import type { StatistikMode } from '../data/statistik'
-import { loadLernenState, saveLernenState } from '../data/pageState'
+import { loadLernenState, saveLernenState, isStoredLernenStepActive, type StoredLernenView } from '../data/pageState'
+import { getWortpaareBestzeit, setWortpaareBestzeitIfBetter } from '../data/wortpaareBestzeit'
 import { getFavoritenIds, toggleFavorit } from '../data/favoriten'
+import { orderByDueFirst, recordReview } from '../data/spacedRepetition'
 import { updateStreak } from '../data/streak'
-import { awardKronenForLesson } from '../data/kronen'
+import { awardKronenForLesson, addDailyBonusIfEligible } from '../data/kronen'
 import { isOwned } from '../data/shop'
 import {
   RefreshIcon,
@@ -46,19 +63,31 @@ import {
   FlameIcon,
   CrownIcon,
   ShareIcon,
+  MatheIcon,
+  ChemieIcon,
+  LateinIcon,
+  SpanischIcon,
+  FranzösischIcon,
+  EnglischIcon,
+  BioIcon,
+  PhysikIcon,
 } from '../components/icons'
+import { useInLesson } from '../context/InLessonContext'
 import { checkAchievementsAfterLesson, getAchievements } from '../data/achievements'
-import { share, getShareResultText } from '../data/share'
+import { share, getShareResultText, getShareLernsetPayload } from '../data/share'
 import './LernenPage.css'
 
 type View =
   | 'themen'
+  | 'fach'
   | 'deklinationen'
   | 'verben'
   | 'substantive'
   | 'adjektive'
   | 'vokabeln'
+  | 'grammatik'
   | 'sachkunde'
+  | 'ki-lernsets'
 
 type DeklTyp = 'a' | 'o' | 'u' | 'konsonantisch'
 
@@ -93,12 +122,19 @@ export interface VokabelQuizFrage {
   uebersetzung: string
   options: string[]
   correctIndex: number
+  /** Für Spaced Repetition: Lernset-ID (nur bei Vokabeln) */
+  lernsetId?: string
+  /** Für Spaced Repetition: Index im Lernset (nur bei Vokabeln) */
+  itemIndex?: number
 }
 
-const THEMEN = [
-  { id: 'deklinationen' as const, label: 'Deklinationen', active: true, Icon: TableIcon },
-  { id: 'vokabeln' as const, label: 'Vokabeln', active: true, Icon: BookMarkIcon },
-  { id: 'sachkunde' as const, label: 'Sachkunde', active: true, Icon: LightbulbIcon },
+const KLASSEN: { id: Klassenstufe; label: string }[] = [
+  { id: 5, label: 'Klasse 5' },
+  { id: 6, label: 'Klasse 6' },
+  { id: 7, label: 'Klasse 7' },
+  { id: 8, label: 'Klasse 8' },
+  { id: 9, label: 'Klasse 9' },
+  { id: 10, label: 'Klasse 10' },
 ]
 
 const DEKLINATIONEN_OPTIONEN = [
@@ -133,6 +169,17 @@ const LERNMODI = [
   { id: 'test' as const, label: 'Test', Icon: PenLineIcon },
 ]
 
+const FAECHER_ICON_MAP: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+  mathe: MatheIcon,
+  chemie: ChemieIcon,
+  latein: LateinIcon,
+  spanisch: SpanischIcon,
+  franzoesisch: FranzösischIcon,
+  englisch: EnglischIcon,
+  bio: BioIcon,
+  physik: PhysikIcon,
+}
+
 const VOKABEL_SPIELE = [
   { id: 'wortpaare' as const, label: 'Wortpaare finden', Icon: CardIcon },
   { id: 'glücksrad' as const, label: 'Glücksrad', Icon: ZapIcon },
@@ -143,8 +190,14 @@ const FRAGEN_ANZAHL = 10
 const OPTIONEN_ANZAHL = 4
 const TRANSITION_MS = 420
 
+/** Normalisiert für Vergleich: Kleinbuchstaben, Leerzeichen, Sonderzeichen (ā→a, ē→e, …) gelten wie normale Buchstaben. */
 function normalizeLatin(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, ' ')
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/\s+/g, ' ')
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -156,20 +209,81 @@ function shuffle<T>(arr: T[]): T[] {
   return out
 }
 
+/** Prozent in deutsche Schulnote (1–6) umrechnen. */
+function percentToGrade(percent: number): number {
+  if (percent >= 90) return 1
+  if (percent >= 80) return 2
+  if (percent >= 70) return 3
+  if (percent >= 60) return 4
+  if (percent >= 50) return 5
+  return 6
+}
+
 function buildVokabelQuiz(items: VokabelEintrag[], count: number): VokabelQuizFrage[] {
   if (items.length < 2) return []
   const pool = shuffle([...items]).slice(0, Math.min(count, items.length))
-  return pool.map((item) => {
-    const correctAnswer = item.uebersetzung
-    const others = items.filter((i) => i.uebersetzung !== correctAnswer).map((i) => i.uebersetzung)
-    let wrongs = shuffle(others).slice(0, OPTIONEN_ANZAHL - 1)
+  return pool.map((item, poolIndex) => buildOneVokabelFrage(item, items, undefined, undefined, poolIndex))
+}
+
+/** Eine Vokabel-Frage bauen (mit optionalem lernsetId/itemIndex für Spaced Repetition) */
+function buildOneVokabelFrage(
+  item: VokabelEintrag,
+  allItems: VokabelEintrag[],
+  lernsetId?: string,
+  itemIndex?: number,
+  _poolIndex?: number
+): VokabelQuizFrage {
+  const correctAnswer = item.uebersetzung
+  let wrongs: string[]
+  if (item.wrongOptions && item.wrongOptions.length >= OPTIONEN_ANZAHL - 1) {
+    wrongs = shuffle([...item.wrongOptions]).slice(0, OPTIONEN_ANZAHL - 1)
+  } else {
+    const others = allItems.filter((i) => i.uebersetzung !== correctAnswer).map((i) => i.uebersetzung)
+    wrongs = shuffle(others).slice(0, OPTIONEN_ANZAHL - 1)
     while (wrongs.length < OPTIONEN_ANZAHL - 1 && others.length > 0) {
       wrongs.push(others[wrongs.length % others.length])
     }
-    const options = shuffle([correctAnswer, ...wrongs])
-    const correctIndex = options.indexOf(correctAnswer)
-    return { vokabel: item.vokabel, uebersetzung: item.uebersetzung, options, correctIndex }
-  })
+  }
+  const options = shuffle([correctAnswer, ...wrongs])
+  const correctIndex = options.indexOf(correctAnswer)
+  return {
+    vokabel: item.vokabel,
+    uebersetzung: item.uebersetzung,
+    options,
+    correctIndex,
+    ...(lernsetId != null && { lernsetId }),
+    ...(itemIndex != null && { itemIndex }),
+  }
+}
+
+/** Vokabel-Quiz aus nach Fälligkeit sortierten Items (Spaced Repetition: fällige zuerst) */
+function buildVokabelQuizFromOrdered(
+  lernsetId: string,
+  ordered: { item: VokabelEintrag; index: number; due: boolean }[],
+  allItems: VokabelEintrag[],
+  count: number
+): VokabelQuizFrage[] {
+  if (ordered.length < 2) return []
+  const pool = ordered.slice(0, Math.min(count, ordered.length))
+  return pool.map(({ item, index }) => buildOneVokabelFrage(item, allItems, lernsetId, index))
+}
+
+/** Vollständiger Pool aller Vokabel-Fragen (für 5-Stationen-Lernmodus), in 3 Teile (je ~33 %) geteilt. */
+function buildVokabelFullPoolAndParts(
+  lernsetId: string,
+  ordered: { item: VokabelEintrag; index: number; due: boolean }[],
+  allItems: VokabelEintrag[]
+): { full: VokabelQuizFrage[]; part1: VokabelQuizFrage[]; part2: VokabelQuizFrage[]; part3: VokabelQuizFrage[] } {
+  if (ordered.length < 2) return { full: [], part1: [], part2: [], part3: [] }
+  const full = shuffle(
+    ordered.map(({ item, index }) => buildOneVokabelFrage(item, allItems, lernsetId, index))
+  )
+  const n = full.length
+  const third = Math.max(1, Math.floor(n / 3))
+  const part1 = full.slice(0, third)
+  const part2 = full.slice(third, 2 * third)
+  const part3 = full.slice(2 * third)
+  return { full, part1, part2, part3 }
 }
 
 function buildQuiz(beispiele: DeklinationBeispiel[]): QuizFrage[] {
@@ -206,6 +320,54 @@ function buildQuiz(beispiele: DeklinationBeispiel[]): QuizFrage[] {
       correctIndex,
     }
   })
+}
+
+/** Vollständiger Pool aller Deklinations-Fragen (für 5-Stationen-Lernmodus), in 3 Teile (je ~33 %) geteilt. */
+function buildDeklinationFullPoolAndParts(beispiele: DeklinationBeispiel[]): {
+  full: QuizFrage[]
+  part1: QuizFrage[]
+  part2: QuizFrage[]
+  part3: QuizFrage[]
+} {
+  const pool: { beispielIndex: number; caseIndex: number; isPlural: boolean }[] = []
+  beispiele.forEach((_, bi) => {
+    for (let c = 0; c < 6; c++) {
+      pool.push({ beispielIndex: bi, caseIndex: c, isPlural: false })
+      pool.push({ beispielIndex: bi, caseIndex: c, isPlural: true })
+    }
+  })
+  const shuffled = shuffle(pool)
+  const full = shuffled.map(({ beispielIndex, caseIndex, isPlural }) => {
+    const b = beispiele[beispielIndex]
+    const wortName = b.name.split(' ')[0]
+    const fall = FAELLE[caseIndex]
+    const correctAnswer = isPlural ? b.tabelle.plural[caseIndex] : b.tabelle.singular[caseIndex]
+    const zahlLabel = isPlural ? 'Plural' : 'Singular'
+    const allForms = [...new Set([...b.tabelle.singular, ...b.tabelle.plural])].filter((f) => f !== correctAnswer)
+    let wrongs = shuffle(allForms).slice(0, OPTIONEN_ANZAHL - 1)
+    while (wrongs.length < OPTIONEN_ANZAHL - 1 && wrongs.length > 0) {
+      wrongs.push(wrongs[wrongs.length % wrongs.length])
+    }
+    const options = shuffle([correctAnswer, ...wrongs])
+    const correctIndex = options.indexOf(correctAnswer)
+    return {
+      beispielIndex,
+      wortName,
+      fallIndex: caseIndex,
+      fall,
+      isPlural,
+      zahlLabel,
+      correctAnswer,
+      options,
+      correctIndex,
+    }
+  })
+  const n = full.length
+  const third = Math.max(1, Math.floor(n / 3))
+  const part1 = full.slice(0, third)
+  const part2 = full.slice(third, 2 * third)
+  const part3 = full.slice(2 * third)
+  return { full, part1, part2, part3 }
 }
 
 function isVerbenTyp(x: unknown): x is VerbenTyp {
@@ -334,6 +496,24 @@ function buildSachkundeWortpaare(
   return shuffle(cards)
 }
 
+function buildDeklinationKarteikarten(beispiele: DeklinationBeispiel[]): { front: string; back: string }[] {
+  const cards: { front: string; back: string }[] = []
+  beispiele.forEach((b) => {
+    const wortName = b.name.split(' ')[0]
+    FAELLE.forEach((fall, i) => {
+      cards.push({
+        front: `Wie lautet ${fall} Singular von ${wortName}?`,
+        back: b.tabelle.singular[i],
+      })
+      cards.push({
+        front: `Wie lautet ${fall} Plural von ${wortName}?`,
+        back: b.tabelle.plural[i],
+      })
+    })
+  })
+  return cards
+}
+
 function buildDeklinationWortpaare(beispiele: DeklinationBeispiel[]): { id: number; text: string; pairId: number }[] {
   const pairs: [string, string][] = []
   beispiele.forEach((b) => {
@@ -445,18 +625,84 @@ export function LernenPage() {
   )
   const [selectedLernsetId, setSelectedLernsetId] = useState<string | null>(storedState.selectedLernsetId)
   const [step, setStep] = useState<Step | null>(storedState.step ?? null)
+  const [selectedSachkundeTopicId, setSelectedSachkundeTopicId] = useState<string | null>(
+    storedState.selectedSachkundeTopicId ?? null
+  )
+  const [selectedGrammatikTopicId, setSelectedGrammatikTopicId] = useState<string | null>(
+    storedState.selectedGrammatikTopicId ?? null
+  )
+  const [selectedKlassenstufe, setSelectedKlassenstufe] = useState<Klassenstufe | null>(null)
+  const [selectedFachId, setSelectedFachId] = useState<string | null>(null)
+  const [fromKiLernsetsVokabeln, setFromKiLernsetsVokabeln] = useState(false)
+  const [kiSubCategory, setKiSubCategory] = useState<'vokabeln' | 'deklination' | 'karteikarten' | null>(null)
+  const location = useLocation()
+  const navigate = useNavigate()
+  useEffect(() => {
+    const state = location.state as { openKiVokabeln?: boolean } | null
+    if (state?.openKiVokabeln) {
+      setView('vokabeln')
+      setFromKiLernsetsVokabeln(true)
+      setBreadcrumb(['KI-Lernsets', 'Vokabeln'])
+      setStep(null)
+      navigate('/lernen', { replace: true, state: {} })
+    }
+  }, [location.state, navigate])
+  const [selectedAiDeklinationSetId, setSelectedAiDeklinationSetId] = useState<string | null>(null)
+  const [selectedKarteikartenSetId, setSelectedKarteikartenSetId] = useState<string | null>(null)
+  const [showContinueDialog, setShowContinueDialog] = useState(false)
   const [favoritenIds, setFavoritenIds] = useState<string[]>(() => getFavoritenIds())
   const [streakPopup, setStreakPopup] = useState<{ streak: number; updated: boolean } | null>(null)
   const [crownsEarned, setCrownsEarned] = useState<number | null>(null)
   const [showCrownRewardScreen, setShowCrownRewardScreen] = useState(false)
   const [newAchievementIds, setNewAchievementIds] = useState<string[]>([])
   const [shareResultFeedback, setShareResultFeedback] = useState<'idle' | 'ok' | 'fail'>('idle')
+  const [shareLernsetFeedback, setShareLernsetFeedback] = useState<'idle' | 'ok' | 'fail'>('idle')
+  const [searchQuery, setSearchQuery] = useState('')
   const [quizQuestions, setQuizQuestions] = useState<QuizFrage[]>([])
   const [quizIndex, setQuizIndex] = useState(0)
   const [quizAnswers, setQuizAnswers] = useState<Array<number | string | null>>([])
   const [quizMode, setQuizMode] = useState<QuizMode | null>(null)
   const [testInput, setTestInput] = useState('')
-  const [karteikartenItems, setKarteikartenItems] = useState<{ front: string; back: string }[]>([])
+
+  /* 5-Stationen-Lernmodus nur für Deklinationen (Substantiv/Adjektiv) */
+  const [dekStationLernenActive, setDekStationLernenActive] = useState(false)
+  const [dekStation, setDekStation] = useState<1 | 2 | 3 | 4 | 5>(1)
+  const [dekPhase, setDekPhase] = useState<'newMc' | 'wrongMc' | 'correctTest'>('newMc')
+  const [dekParts, setDekParts] = useState<[QuizFrage[], QuizFrage[], QuizFrage[]]>([[], [], []])
+  const [dekPrevWrong, setDekPrevWrong] = useState<QuizFrage[]>([])
+  const [dekPrevCorrect, setDekPrevCorrect] = useState<QuizFrage[]>([])
+  const [dekShowZwischenauswertung, setDekShowZwischenauswertung] = useState(false)
+  const [dekZwischenCorrect, setDekZwischenCorrect] = useState(0)
+  const [dekZwischenWrong, setDekZwischenWrong] = useState(0)
+  const [dekZwischenFromPhase, setDekZwischenFromPhase] = useState<'newMc' | 'wrongMc' | 'correctTest'>('newMc')
+  const [dekResultsNewPart, setDekResultsNewPart] = useState<{ wrong: QuizFrage[]; correct: QuizFrage[] }>({ wrong: [], correct: [] })
+  const dekCompletedRef = useRef(false)
+  const [dekStationTestMode, setDekStationTestMode] = useState(false)
+  const [dekTestTotalCorrect, setDekTestTotalCorrect] = useState(0)
+  const [dekTestTotalQuestions, setDekTestTotalQuestions] = useState(0)
+  const [showDekTestAuswertung, setShowDekTestAuswertung] = useState(false)
+
+  /* 5-Stationen-Lernmodus für Vokabeln */
+  const [vokStationLernenActive, setVokStationLernenActive] = useState(false)
+  const [vokStation, setVokStation] = useState<1 | 2 | 3 | 4 | 5>(1)
+  const [vokPhase, setVokPhase] = useState<'newMc' | 'wrongMc' | 'correctTest'>('newMc')
+  const [vokParts, setVokParts] = useState<[VokabelQuizFrage[], VokabelQuizFrage[], VokabelQuizFrage[]]>([[], [], []])
+  const [vokPrevWrong, setVokPrevWrong] = useState<VokabelQuizFrage[]>([])
+  const [vokPrevCorrect, setVokPrevCorrect] = useState<VokabelQuizFrage[]>([])
+  const [vokShowZwischenauswertung, setVokShowZwischenauswertung] = useState(false)
+  const [vokZwischenCorrect, setVokZwischenCorrect] = useState(0)
+  const [vokZwischenWrong, setVokZwischenWrong] = useState(0)
+  const [vokZwischenFromPhase, setVokZwischenFromPhase] = useState<'newMc' | 'wrongMc' | 'correctTest'>('newMc')
+  const [vokResultsNewPart, setVokResultsNewPart] = useState<{ wrong: VokabelQuizFrage[]; correct: VokabelQuizFrage[] }>({ wrong: [], correct: [] })
+  const vokCompletedRef = useRef(false)
+  const [vokStationTestMode, setVokStationTestMode] = useState(false)
+  const [vokTestTotalCorrect, setVokTestTotalCorrect] = useState(0)
+  const [vokTestTotalQuestions, setVokTestTotalQuestions] = useState(0)
+  const [showVokTestAuswertung, setShowVokTestAuswertung] = useState(false)
+
+  const [karteikartenItems, setKarteikartenItems] = useState<
+    { front: string; back: string; frontImage?: string; backImage?: string }[]
+  >([])
   const [karteikartenIndex, setKarteikartenIndex] = useState(0)
   const [karteikartenResults, setKarteikartenResults] = useState<boolean[]>([])
   const [karteikartenFlipped, setKarteikartenFlipped] = useState(false)
@@ -465,7 +711,6 @@ export function LernenPage() {
   const [vokabelQuizAnswers, setVokabelQuizAnswers] = useState<Array<number | string | null>>([])
   const [vokabelQuizMode, setVokabelQuizMode] = useState<'lernen' | 'test' | null>(null)
   const [vokabelTestInput, setVokabelTestInput] = useState('')
-  const [selectedSachkundeTopicId, setSelectedSachkundeTopicId] = useState<string | null>(null)
   const [sachkundeQuizQuestions, setSachkundeQuizQuestions] = useState<SachkundeQuizFrage[]>([])
   const [sachkundeQuizIndex, setSachkundeQuizIndex] = useState(0)
   const [sachkundeQuizAnswers, setSachkundeQuizAnswers] = useState<Array<number | null>>([])
@@ -477,7 +722,11 @@ export function LernenPage() {
   const [wortpaareMatched, setWortpaareMatched] = useState<number[]>([])
   const [wortpaareStartTime, setWortpaareStartTime] = useState<number>(0)
   const [wortpaareEndTime, setWortpaareEndTime] = useState<number | null>(null)
-  const [wortpaareTimerSec, setWortpaareTimerSec] = useState(0)
+  const [wortpaareElapsedMs, setWortpaareElapsedMs] = useState(0)
+  const [wortpaareLessonKey, setWortpaareLessonKey] = useState<string | null>(null)
+  const [wortpaareIsNewBest, setWortpaareIsNewBest] = useState(false)
+  /** Bei KI-Lernsets: Wortpaare ohne Zeitdruck (kein Timer, keine Zeit in der Auswertung) */
+  const [wortpaareOhneZeit, setWortpaareOhneZeit] = useState(false)
   const [glücksradQuestions, setGlücksradQuestions] = useState<VokabelQuizFrage[]>([])
   const [glücksradIndex, setGlücksradIndex] = useState(0)
   const [glücksradAnswers, setGlücksradAnswers] = useState<Array<number | null>>([])
@@ -490,15 +739,39 @@ export function LernenPage() {
   const [rennenAnswers, setRennenAnswers] = useState<Array<number | null>>([])
   const [rennenCarProgress, setRennenCarProgress] = useState(0)
   const [rennenOpponentProgress, setRennenOpponentProgress] = useState(0)
+  const [rennenStartTime, setRennenStartTime] = useState<number>(0)
+  const [rennenElapsedMs, setRennenElapsedMs] = useState(0)
+  const rennenQuestionStartRef = useRef<number | null>(null)
   const sessionStartRef = useRef<number>(0)
   const statistikRecordedRef = useRef(false)
+  const { setInLesson } = useInLesson()
 
+  const selectedAiDeklSet = selectedAiDeklinationSetId ? getAiDeklinationSetById(selectedAiDeklinationSetId) : null
+  const selectedKarteikartenSet = selectedKarteikartenSetId ? getKarteikartenSetById(selectedKarteikartenSetId) : null
+  const karteikartenSetItems: KarteikartenEintrag[] = selectedKarteikartenSet?.items ?? []
   const beispiele: DeklinationBeispiel[] =
-    view === 'substantive' && selectedTyp && selectedTyp in SUBSTANTIV_DEKLINATIONEN
-      ? SUBSTANTIV_DEKLINATIONEN[selectedTyp as DeklTyp]
-      : view === 'adjektive' && (selectedTyp === 'a-o' || selectedTyp === 'konsonantisch')
-        ? ADJEKTIV_DEKLINATIONEN[selectedTyp]
-        : []
+    view === 'ki-lernsets' && selectedAiDeklSet
+      ? [selectedAiDeklSet.beispiel]
+      : view === 'substantive' && selectedTyp && selectedTyp in SUBSTANTIV_DEKLINATIONEN
+        ? [
+            ...SUBSTANTIV_DEKLINATIONEN[selectedTyp as DeklTyp],
+            ...getAiDeklinationenForTyp(selectedTyp as DeklTyp),
+          ]
+        : view === 'adjektive' && (selectedTyp === 'a-o' || selectedTyp === 'konsonantisch')
+          ? ADJEKTIV_DEKLINATIONEN[selectedTyp]
+          : []
+
+  /* Beim Start: Keine vorgegebenen Themen mehr – immer mit leerer Lernseite (themen) starten. */
+  useEffect(() => {
+    if (view === 'grammatik' || view === 'deklinationen' || view === 'sachkunde') {
+      setView('themen')
+      setBreadcrumb([])
+      setStep(null)
+      setSelectedKlassenstufe(null)
+      setSelectedGrammatikTopicId(null)
+      setSelectedSachkundeTopicId(null)
+    }
+  }, [])
 
   useEffect(() => {
     if (transitionFrom === null) return
@@ -506,31 +779,178 @@ export function LernenPage() {
     return () => clearTimeout(t)
   }, [transitionFrom])
 
+  useEffect(() => {
+    const inLesson = view !== 'themen' || step !== null
+    setInLesson(inLesson)
+    return () => setInLesson(false)
+  }, [view, step, setInLesson])
+
+  /* 5-Stationen Deklination: Bei vollständig beantworteter Queue → Zwischenauswertung oder Übergang wrongMc → correctTest */
+  useEffect(() => {
+    if (!dekStationLernenActive || dekShowZwischenauswertung) return
+    if (quizQuestions.length === 0 || quizAnswers.some((a) => a === null)) return
+    if (dekCompletedRef.current) return
+    const correctCount = quizQuestions.filter((q, i) => isAnswerCorrect(q, quizAnswers[i])).length
+    const wrongCount = quizQuestions.length - correctCount
+    if (dekStationTestMode) {
+      setDekTestTotalCorrect((c) => c + correctCount)
+      setDekTestTotalQuestions((t) => t + quizQuestions.length)
+    }
+    if (dekPhase === 'wrongMc' && !dekStationTestMode) {
+      const wrongList = quizQuestions.filter((q, i) => !isAnswerCorrect(q, quizAnswers[i]))
+      setDekPrevWrong(wrongList)
+      if (dekPrevCorrect.length === 0) {
+        dekCompletedRef.current = true
+        setDekZwischenCorrect(correctCount)
+        setDekZwischenWrong(wrongCount)
+        setDekZwischenFromPhase('correctTest')
+        setDekShowZwischenauswertung(true)
+        return
+      }
+      setDekPhase('correctTest')
+      setQuizQuestions(dekPrevCorrect)
+      setQuizIndex(0)
+      setQuizAnswers(Array(dekPrevCorrect.length).fill(null))
+      setQuizMode('test')
+      setTestInput('')
+      return
+    }
+    dekCompletedRef.current = true
+    setDekZwischenCorrect(correctCount)
+    setDekZwischenWrong(wrongCount)
+    setDekZwischenFromPhase(dekPhase)
+    if (dekPhase === 'newMc') {
+      const wrongList = quizQuestions.filter((q, i) => !isAnswerCorrect(q, quizAnswers[i]))
+      const correctList = quizQuestions.filter((q, i) => isAnswerCorrect(q, quizAnswers[i]))
+      setDekResultsNewPart({ wrong: wrongList, correct: correctList })
+    }
+    setDekShowZwischenauswertung(true)
+  }, [
+    dekStationLernenActive,
+    dekShowZwischenauswertung,
+    dekPhase,
+    dekPrevCorrect,
+    dekStationTestMode,
+    quizQuestions,
+    quizAnswers,
+  ])
+
+  /* 5-Stationen Vokabeln: Bei vollständig beantworteter Queue → Zwischenauswertung oder Übergang wrongMc → correctTest */
+  useEffect(() => {
+    if (!vokStationLernenActive || vokShowZwischenauswertung) return
+    if (vokabelQuizQuestions.length === 0 || vokabelQuizAnswers.some((a) => a === null)) return
+    if (vokCompletedRef.current) return
+    const correctCount = vokabelQuizQuestions.filter((q, i) => isVokabelAnswerCorrect(q, vokabelQuizAnswers[i])).length
+    const wrongCount = vokabelQuizQuestions.length - correctCount
+    if (vokStationTestMode) {
+      setVokTestTotalCorrect((c) => c + correctCount)
+      setVokTestTotalQuestions((t) => t + vokabelQuizQuestions.length)
+    }
+    if (vokPhase === 'wrongMc' && !vokStationTestMode) {
+      const wrongList = vokabelQuizQuestions.filter((q, i) => !isVokabelAnswerCorrect(q, vokabelQuizAnswers[i]))
+      setVokPrevWrong(wrongList)
+      if (vokPrevCorrect.length === 0) {
+        vokCompletedRef.current = true
+        setVokZwischenCorrect(correctCount)
+        setVokZwischenWrong(wrongCount)
+        setVokZwischenFromPhase('correctTest')
+        setVokShowZwischenauswertung(true)
+        return
+      }
+      setVokPhase('correctTest')
+      setVokabelQuizQuestions(vokPrevCorrect)
+      setVokabelQuizIndex(0)
+      setVokabelQuizAnswers(Array(vokPrevCorrect.length).fill(null))
+      setVokabelQuizMode('test')
+      setVokabelTestInput('')
+      return
+    }
+    vokCompletedRef.current = true
+    setVokZwischenCorrect(correctCount)
+    setVokZwischenWrong(wrongCount)
+    setVokZwischenFromPhase(vokPhase)
+    if (vokPhase === 'newMc') {
+      const wrongList = vokabelQuizQuestions.filter((q, i) => !isVokabelAnswerCorrect(q, vokabelQuizAnswers[i]))
+      const correctList = vokabelQuizQuestions.filter((q, i) => isVokabelAnswerCorrect(q, vokabelQuizAnswers[i]))
+      setVokResultsNewPart({ wrong: wrongList, correct: correctList })
+    }
+    setVokShowZwischenauswertung(true)
+  }, [
+    vokStationLernenActive,
+    vokShowZwischenauswertung,
+    vokPhase,
+    vokPrevCorrect,
+    vokStationTestMode,
+    vokabelQuizQuestions,
+    vokabelQuizAnswers,
+  ])
+
   const pairCountDerived = wortpaareCards.length / 2
   useEffect(() => {
     if (pairCountDerived < 1 || wortpaareMatched.length !== pairCountDerived) return
-    setWortpaareEndTime((prev) => (prev == null ? Date.now() : prev))
-  }, [wortpaareMatched.length, pairCountDerived])
+    const endMs = Date.now()
+    setWortpaareEndTime((prev) => (prev == null ? endMs : prev))
+    if (!wortpaareOhneZeit && wortpaareLessonKey) {
+      const timeMs = endMs - wortpaareStartTime
+      const isNew = setWortpaareBestzeitIfBetter(wortpaareLessonKey, timeMs)
+      setWortpaareIsNewBest(isNew)
+    }
+  }, [wortpaareMatched.length, pairCountDerived, wortpaareLessonKey, wortpaareStartTime, wortpaareOhneZeit])
 
   useEffect(() => {
-    if (step !== 'wortpaare' || wortpaareCards.length === 0 || wortpaareMatched.length === pairCountDerived) return
-    setWortpaareTimerSec(Math.floor((Date.now() - wortpaareStartTime) / 1000))
-    const id = setInterval(() => {
-      setWortpaareTimerSec(Math.floor((Date.now() - wortpaareStartTime) / 1000))
-    }, 1000)
+    if (step !== 'wortpaare' || wortpaareOhneZeit || wortpaareCards.length === 0 || wortpaareMatched.length === pairCountDerived) return
+    const tick = () => setWortpaareElapsedMs(Math.max(0, Date.now() - wortpaareStartTime))
+    tick()
+    const id = setInterval(tick, 50)
     return () => clearInterval(id)
-  }, [step, wortpaareCards.length, wortpaareMatched.length, wortpaareStartTime, pairCountDerived])
+  }, [step, wortpaareOhneZeit, wortpaareCards.length, wortpaareMatched.length, wortpaareStartTime, pairCountDerived])
 
   useEffect(() => {
-    if (step !== null && step !== 'chooseMode') return
     saveLernenState({
-      view,
+      view: (view === 'ki-lernsets' || view === 'fach' ? 'themen' : view) as StoredLernenView,
       breadcrumb,
       selectedTyp,
       selectedLernsetId,
-      step: step === 'chooseMode' ? 'chooseMode' : null,
+      selectedGrammatikTopicId,
+      selectedSachkundeTopicId,
+      step: step === 'chooseMode' ? 'chooseMode' : step === null ? null : step,
     })
-  }, [view, breadcrumb, selectedTyp, selectedLernsetId, step])
+  }, [view, breadcrumb, selectedTyp, selectedLernsetId, selectedGrammatikTopicId, selectedSachkundeTopicId, step])
+
+  useEffect(() => {
+    if (!isStoredLernenStepActive(storedState.step)) return
+    setStep('chooseMode')
+    setShowContinueDialog(true)
+  }, [])
+
+  // Rennen: Zeit messen (für Live-View & Anzeige)
+  useEffect(() => {
+    if (step !== 'rennen' || rennenDifficulty == null || rennenQuestions.length === 0) return
+    const allAnswered = rennenAnswers.every((a) => a !== null)
+    if (allAnswered || rennenStartTime === 0) return
+    const tick = () => setRennenElapsedMs(Math.max(0, Date.now() - rennenStartTime))
+    tick()
+    const id = setInterval(tick, 50)
+    return () => clearInterval(id)
+  }, [step, rennenDifficulty, rennenQuestions.length, rennenAnswers, rennenStartTime])
+
+  // Rennen: Autos fahren permanent, Antworten geben Boost
+  useEffect(() => {
+    if (step !== 'rennen' || rennenDifficulty == null || rennenQuestions.length === 0) return
+    const allAnswered = rennenAnswers.every((a) => a !== null)
+    if (allAnswered) return
+    const intervalMs = 80
+    const userSpeedPerSec = 1.4
+    const opponentSpeedPerSec =
+      rennenDifficulty === 'leicht' ? 1.2 : rennenDifficulty === 'mittel' ? 1.5 : 1.8
+    const userPerTick = (userSpeedPerSec * intervalMs) / 1000
+    const oppPerTick = (opponentSpeedPerSec * intervalMs) / 1000
+    const id = setInterval(() => {
+      setRennenCarProgress((p) => Math.min(100, p + userPerTick))
+      setRennenOpponentProgress((p) => Math.min(100, p + oppPerTick))
+    }, intervalMs)
+    return () => clearInterval(id)
+  }, [step, rennenDifficulty, rennenQuestions.length, rennenAnswers])
 
   const goTo = (newView: View, newBreadcrumb: string[], isBack: boolean) => {
     if (newView === view && !isBack) return
@@ -544,12 +964,27 @@ export function LernenPage() {
     }
     if (newView !== 'vokabeln') setSelectedLernsetId(null)
     if (newView !== 'sachkunde') setSelectedSachkundeTopicId(null)
+    if (newView !== 'grammatik') setSelectedGrammatikTopicId(null)
+    if (newView === 'ki-lernsets') {
+      setKiSubCategory(null)
+      setSelectedAiDeklinationSetId(null)
+    }
+    if (newView !== 'vokabeln') setFromKiLernsetsVokabeln(false)
   }
 
-  const handleThemaClick = (id: string) => {
-    if (id === 'deklinationen') goTo('deklinationen', ['Endungen'], false)
-    if (id === 'vokabeln') goTo('vokabeln', ['Vokabeln'], false)
-    if (id === 'sachkunde') goTo('sachkunde', ['Sachkunde'], false)
+  const handleKlasseClick = (klasse: Klassenstufe) => {
+    setSelectedKlassenstufe(klasse)
+    setView('grammatik')
+    setBreadcrumb([`Klasse ${klasse}`])
+    setStep(null)
+    setSelectedGrammatikTopicId(null)
+  }
+
+  const handleKlassenDashboardClick = (action: 'vokabeln' | 'deklinationen' | 'sachkunde' | 'ki-lernsets') => {
+    if (action === 'vokabeln') goTo('vokabeln', [...(selectedKlassenstufe ? [`Klasse ${selectedKlassenstufe}`] : []), 'Vokabeln'], false)
+    if (action === 'deklinationen') goTo('deklinationen', [...(selectedKlassenstufe ? [`Klasse ${selectedKlassenstufe}`] : []), 'Deklinationen'], false)
+    if (action === 'sachkunde') goTo('sachkunde', [...(selectedKlassenstufe ? [`Klasse ${selectedKlassenstufe}`] : []), 'Sachkunde'], false)
+    if (action === 'ki-lernsets') goTo('ki-lernsets', [...(selectedKlassenstufe ? [`Klasse ${selectedKlassenstufe}`] : []), 'KI-Lernsets'], false)
   }
 
   const handleDeklinationenOptionClick = (id: 'verben' | 'substantive' | 'adjektive') => {
@@ -563,6 +998,12 @@ export function LernenPage() {
   }
 
   const selectedSachkundeTopic = selectedSachkundeTopicId ? getSachkundeTopic(selectedSachkundeTopicId) : null
+  const selectedGrammatikTopic = selectedGrammatikTopicId ? getGrammatikTopic(selectedGrammatikTopicId) : null
+
+  const handleGrammatikTopicClick = (topicId: string) => {
+    setSelectedGrammatikTopicId(topicId)
+    setStep('chooseMode')
+  }
 
   const handleSachkundeTopicClick = (topicId: string) => {
     setSelectedSachkundeTopicId(topicId)
@@ -609,8 +1050,8 @@ export function LernenPage() {
       setStep('anschauen')
       return
     }
-    if (id === 'wortpaare' && view === 'vokabeln' && selectedLernset && selectedLernset.items.length >= 4) {
-      const items = selectedLernset.items
+    if (id === 'wortpaare' && (view === 'vokabeln' || view === 'grammatik') && effectiveVokabelItems.length >= 4) {
+      const items = effectiveVokabelItems
       const pairCount = Math.min(8, Math.floor(items.length / 2) * 2)
       const used = shuffle([...items]).slice(0, pairCount)
       const cards: { id: number; text: string; pairId: number }[] = []
@@ -623,6 +1064,10 @@ export function LernenPage() {
       setWortpaareMatched([])
       setWortpaareStartTime(Date.now())
       setWortpaareEndTime(null)
+      setWortpaareElapsedMs(0)
+      setWortpaareLessonKey(effectiveVokabelSetId ?? '')
+      setWortpaareIsNewBest(false)
+      setWortpaareOhneZeit(view === 'vokabeln' && selectedLernset?.source === 'ai')
       sessionStartRef.current = Date.now()
       statistikRecordedRef.current = false
       setStep('wortpaare')
@@ -636,6 +1081,10 @@ export function LernenPage() {
         setWortpaareMatched([])
         setWortpaareStartTime(Date.now())
         setWortpaareEndTime(null)
+        setWortpaareElapsedMs(0)
+        setWortpaareLessonKey(`verben-${selectedTyp}`)
+        setWortpaareIsNewBest(false)
+        setWortpaareOhneZeit(false)
         sessionStartRef.current = Date.now()
         statistikRecordedRef.current = false
         setStep('wortpaare')
@@ -657,6 +1106,10 @@ export function LernenPage() {
           setWortpaareMatched([])
           setWortpaareStartTime(Date.now())
           setWortpaareEndTime(null)
+          setWortpaareElapsedMs(0)
+          setWortpaareLessonKey(`${view}-${selectedTyp}`)
+          setWortpaareIsNewBest(false)
+          setWortpaareOhneZeit(false)
           sessionStartRef.current = Date.now()
           statistikRecordedRef.current = false
           setStep('wortpaare')
@@ -664,8 +1117,8 @@ export function LernenPage() {
       }
       return
     }
-    if (id === 'glücksrad' && view === 'vokabeln' && selectedLernset && selectedLernset.items.length >= 2) {
-      const questions = buildVokabelQuiz(selectedLernset.items, Math.min(10, selectedLernset.items.length))
+    if (id === 'glücksrad' && (view === 'vokabeln' || view === 'grammatik') && effectiveVokabelItems.length >= 2) {
+      const questions = buildVokabelQuiz(effectiveVokabelItems, Math.min(10, effectiveVokabelItems.length))
       if (questions.length > 0) {
         setGlücksradQuestions(questions)
         setGlücksradIndex(0)
@@ -716,13 +1169,16 @@ export function LernenPage() {
       }
       return
     }
-    if (id === 'rennen' && view === 'vokabeln' && selectedLernset && selectedLernset.items.length >= 2) {
+    if (id === 'rennen' && (view === 'vokabeln' || view === 'grammatik') && effectiveVokabelItems.length >= 2) {
       setRennenDifficulty(null)
       setRennenQuestions([])
       setRennenIndex(0)
       setRennenAnswers([])
       setRennenCarProgress(0)
       setRennenOpponentProgress(0)
+      setRennenStartTime(0)
+      setRennenElapsedMs(0)
+      rennenQuestionStartRef.current = null
       sessionStartRef.current = Date.now()
       statistikRecordedRef.current = false
       setStep('rennen')
@@ -735,6 +1191,9 @@ export function LernenPage() {
       setRennenAnswers([])
       setRennenCarProgress(0)
       setRennenOpponentProgress(0)
+      setRennenStartTime(0)
+      setRennenElapsedMs(0)
+      rennenQuestionStartRef.current = null
       sessionStartRef.current = Date.now()
       statistikRecordedRef.current = false
       setStep('rennen')
@@ -748,6 +1207,10 @@ export function LernenPage() {
         setWortpaareMatched([])
         setWortpaareStartTime(Date.now())
         setWortpaareEndTime(null)
+        setWortpaareElapsedMs(0)
+        setWortpaareLessonKey(selectedSachkundeTopicId ? `sachkunde-${selectedSachkundeTopicId}` : 'sachkunde')
+        setWortpaareIsNewBest(false)
+        setWortpaareOhneZeit(false)
         sessionStartRef.current = Date.now()
         statistikRecordedRef.current = false
         setStep('wortpaare')
@@ -777,13 +1240,34 @@ export function LernenPage() {
       setRennenAnswers([])
       setRennenCarProgress(0)
       setRennenOpponentProgress(0)
+      setRennenStartTime(0)
+      setRennenElapsedMs(0)
+      rennenQuestionStartRef.current = null
       sessionStartRef.current = Date.now()
       statistikRecordedRef.current = false
       setStep('rennen')
       return
     }
-    if (id === 'karteikarten' && view === 'vokabeln' && selectedLernset && selectedLernset.items.length > 0) {
-      setKarteikartenItems(shuffle(selectedLernset.items.map((i) => ({ front: i.vokabel, back: i.uebersetzung }))))
+    if (id === 'karteikarten' && (view === 'vokabeln' || view === 'grammatik') && effectiveVokabelItems.length > 0) {
+      const ordered = orderByDueFirst(effectiveVokabelSetId!, effectiveVokabelItems)
+      const items = ordered.map(({ item }) => ({
+        front: item.vokabel,
+        back: item.uebersetzung,
+        frontImage: item.vokabelImage,
+        backImage: item.uebersetzungImage,
+      }))
+      setKarteikartenItems(items)
+      setKarteikartenIndex(0)
+      setKarteikartenResults([])
+      setKarteikartenFlipped(false)
+      sessionStartRef.current = Date.now()
+      statistikRecordedRef.current = false
+      setStep('karteikarten')
+      return
+    }
+    if (id === 'karteikarten' && (view === 'substantive' || view === 'adjektive') && selectedTyp && beispiele.length > 0) {
+      const items = shuffle(buildDeklinationKarteikarten(beispiele))
+      setKarteikartenItems(items)
       setKarteikartenIndex(0)
       setKarteikartenResults([])
       setKarteikartenFlipped(false)
@@ -803,22 +1287,235 @@ export function LernenPage() {
       setStep('karteikarten')
       return
     }
-    if (id === 'lernen' || id === 'test') {
-      if (view === 'vokabeln' && selectedLernset && selectedLernset.items.length >= 2) {
-        const questions = buildVokabelQuiz(selectedLernset.items, FRAGEN_ANZAHL)
-        if (questions.length > 0) {
-          setVokabelQuizQuestions(questions)
+    if (view === 'ki-lernsets' && selectedKarteikartenSet && karteikartenSetItems.length > 0 && (id === 'lernen' || id === 'test' || id === 'karteikarten')) {
+      const itemsAsVokabeln: VokabelEintrag[] = karteikartenSetItems.map((i) => ({ vokabel: i.front, uebersetzung: i.back }))
+      if (id === 'karteikarten') {
+        const items = shuffle(
+          karteikartenSetItems.map((i) => ({
+            front: i.front,
+            back: i.back,
+            frontImage: i.frontImage,
+            backImage: i.backImage,
+          }))
+        )
+        setKarteikartenItems(items)
+        setKarteikartenIndex(0)
+        setKarteikartenResults([])
+        setKarteikartenFlipped(false)
+        sessionStartRef.current = Date.now()
+        statistikRecordedRef.current = false
+        setStep('karteikarten')
+        return
+      }
+      if (id === 'lernen' && itemsAsVokabeln.length >= 2) {
+        const quiz = buildVokabelQuiz(itemsAsVokabeln, Math.min(FRAGEN_ANZAHL, itemsAsVokabeln.length))
+        if (quiz.length > 0) {
+          setVokParts([quiz, [], []])
+          setVokStation(1)
+          setVokPhase('newMc')
+          setVokPrevWrong([])
+          setVokPrevCorrect([])
+          setVokResultsNewPart({ wrong: [], correct: [] })
+          setVokShowZwischenauswertung(false)
+          setVokStationLernenActive(true)
+          setVokStationTestMode(false)
+          setVokabelQuizQuestions(quiz)
           setVokabelQuizIndex(0)
-          setVokabelQuizAnswers(Array(questions.length).fill(null))
-          setVokabelQuizMode(id)
+          setVokabelQuizAnswers(Array(quiz.length).fill(null))
+          setVokabelQuizMode('lernen')
           setVokabelTestInput('')
           sessionStartRef.current = Date.now()
           statistikRecordedRef.current = false
-          setStep(id)
+          setStep('lernen')
+        }
+        return
+      }
+      if (id === 'test' && itemsAsVokabeln.length >= 2) {
+        const quiz = buildVokabelQuiz(itemsAsVokabeln, Math.min(FRAGEN_ANZAHL, itemsAsVokabeln.length))
+        if (quiz.length > 0) {
+          setVokParts([quiz, [], []])
+          setVokStation(1)
+          setVokPhase('newMc')
+          setVokPrevWrong([])
+          setVokPrevCorrect([])
+          setVokResultsNewPart({ wrong: [], correct: [] })
+          setVokShowZwischenauswertung(false)
+          setVokStationLernenActive(true)
+          setVokStationTestMode(true)
+          setVokTestTotalCorrect(0)
+          setVokTestTotalQuestions(0)
+          setVokabelQuizQuestions(quiz)
+          setVokabelQuizIndex(0)
+          setVokabelQuizAnswers(Array(quiz.length).fill(null))
+          setVokabelQuizMode('lernen')
+          setVokabelTestInput('')
+          sessionStartRef.current = Date.now()
+          statistikRecordedRef.current = false
+          setStep('test')
+        }
+        return
+      }
+    }
+    if (id === 'lernen' || id === 'test') {
+      if ((view === 'vokabeln' || view === 'grammatik') && effectiveVokabelItems.length >= 2 && effectiveVokabelSetId) {
+        const ordered = orderByDueFirst(effectiveVokabelSetId, effectiveVokabelItems)
+        if (id === 'lernen') {
+          const { part1, part2, part3 } = buildVokabelFullPoolAndParts(effectiveVokabelSetId, ordered, effectiveVokabelItems)
+          if (part1.length === 0) return
+          setVokParts([part1, part2, part3])
+          setVokStation(1)
+          setVokPhase('newMc')
+          setVokPrevWrong([])
+          setVokPrevCorrect([])
+          setVokResultsNewPart({ wrong: [], correct: [] })
+          setVokShowZwischenauswertung(false)
+          setVokStationLernenActive(true)
+          setVokStationTestMode(false)
+          setVokabelQuizQuestions(part1)
+          setVokabelQuizIndex(0)
+          setVokabelQuizAnswers(Array(part1.length).fill(null))
+          setVokabelQuizMode('lernen')
+          setVokabelTestInput('')
+          sessionStartRef.current = Date.now()
+          statistikRecordedRef.current = false
+          setStep('lernen')
+        } else if (id === 'test') {
+          const { part1, part2, part3 } = buildVokabelFullPoolAndParts(effectiveVokabelSetId, ordered, effectiveVokabelItems)
+          if (part1.length === 0) return
+          setVokParts([part1, part2, part3])
+          setVokStation(1)
+          setVokPhase('newMc')
+          setVokPrevWrong([])
+          setVokPrevCorrect([])
+          setVokResultsNewPart({ wrong: [], correct: [] })
+          setVokShowZwischenauswertung(false)
+          setVokStationLernenActive(true)
+          setVokStationTestMode(true)
+          setVokTestTotalCorrect(0)
+          setVokTestTotalQuestions(0)
+          setVokabelQuizQuestions(part1)
+          setVokabelQuizIndex(0)
+          setVokabelQuizAnswers(Array(part1.length).fill(null))
+          setVokabelQuizMode('lernen')
+          setVokabelTestInput('')
+          sessionStartRef.current = Date.now()
+          statistikRecordedRef.current = false
+          setStep('test')
         }
         return
       }
       if (view === 'vokabeln') return
+      if (view === 'ki-lernsets' && selectedAiDeklSet && (id === 'lernen' || id === 'test' || (id as string) === 'anschauen' || (id as string) === 'karteikarten' || (id as string) === 'wortpaare' || (id as string) === 'glücksrad' || (id as string) === 'rennen')) {
+        const examples = beispiele
+        if ((id as string) === 'anschauen') {
+          setStep('anschauen')
+          return
+        }
+        if (id === 'lernen' && examples.length > 0) {
+          const { part1, part2, part3 } = buildDeklinationFullPoolAndParts(examples)
+          if (part1.length > 0) {
+            setDekParts([part1, part2, part3])
+            setDekStation(1)
+            setDekPhase('newMc')
+            setDekPrevWrong([])
+            setDekPrevCorrect([])
+            setDekResultsNewPart({ wrong: [], correct: [] })
+            setDekShowZwischenauswertung(false)
+            setDekStationLernenActive(true)
+            setDekStationTestMode(false)
+            setQuizQuestions(part1)
+            setQuizIndex(0)
+            setQuizAnswers(Array(part1.length).fill(null))
+            setQuizMode('lernen')
+            setTestInput('')
+            sessionStartRef.current = Date.now()
+            statistikRecordedRef.current = false
+            setStep('lernen')
+          }
+          return
+        }
+        if (id === 'test' && examples.length > 0) {
+          const { part1, part2, part3 } = buildDeklinationFullPoolAndParts(examples)
+          if (part1.length > 0) {
+            setDekParts([part1, part2, part3])
+            setDekStation(1)
+            setDekPhase('newMc')
+            setDekPrevWrong([])
+            setDekPrevCorrect([])
+            setDekResultsNewPart({ wrong: [], correct: [] })
+            setDekShowZwischenauswertung(false)
+            setDekStationLernenActive(true)
+            setDekStationTestMode(true)
+            setDekTestTotalCorrect(0)
+            setDekTestTotalQuestions(0)
+            setQuizQuestions(part1)
+            setQuizIndex(0)
+            setQuizAnswers(Array(part1.length).fill(null))
+            setQuizMode('lernen')
+            setTestInput('')
+            sessionStartRef.current = Date.now()
+            statistikRecordedRef.current = false
+            setStep('test')
+          }
+          return
+        }
+        if (((id as string) === 'karteikarten' || (id as string) === 'wortpaare' || (id as string) === 'glücksrad' || (id as string) === 'rennen') && examples.length > 0) {
+          if ((id as string) === 'karteikarten') {
+            setKarteikartenItems(shuffle(buildDeklinationKarteikarten(examples)))
+            setKarteikartenIndex(0)
+            setKarteikartenResults([])
+            sessionStartRef.current = Date.now()
+            statistikRecordedRef.current = false
+            setStep('karteikarten')
+          } else if ((id as string) === 'wortpaare') {
+            const cards = buildDeklinationWortpaare(examples)
+            if (cards.length >= 4) {
+              setWortpaareCards(shuffle(cards))
+              setWortpaareFlipped([])
+              setWortpaareMatched([])
+              setWortpaareStartTime(Date.now())
+              setWortpaareEndTime(null)
+              setWortpaareElapsedMs(0)
+              setWortpaareLessonKey(`ki-dekl-${selectedAiDeklinationSetId}`)
+              setWortpaareIsNewBest(false)
+              setWortpaareOhneZeit(false)
+              sessionStartRef.current = Date.now()
+              statistikRecordedRef.current = false
+              setStep('wortpaare')
+            }
+          } else if ((id as string) === 'glücksrad') {
+            const quiz = buildQuiz(examples)
+            const qs = quiz.map(quizFrageToVokabelQuizFrage)
+            if (qs.length > 0) {
+              setGlücksradQuestions(qs.slice(0, 10))
+              setGlücksradIndex(0)
+              setGlücksradAnswers(Array(Math.min(10, qs.length)).fill(null))
+              setGlücksradSpinning(false)
+              setGlücksradLanded(false)
+              sessionStartRef.current = Date.now()
+              statistikRecordedRef.current = false
+              setStep('glücksrad')
+            }
+          } else if ((id as string) === 'rennen') {
+            const quiz = buildQuiz(examples)
+            const qs = quiz.map(quizFrageToVokabelQuizFrage)
+            if (qs.length >= 2) {
+              setRennenDifficulty('mittel')
+              setRennenQuestions(qs.slice(0, 10))
+              setRennenIndex(0)
+              setRennenAnswers(Array(Math.min(10, qs.length)).fill(null))
+              setRennenCarProgress(0)
+              setRennenOpponentProgress(0)
+              setRennenStartTime(Date.now())
+              setRennenElapsedMs(0)
+              sessionStartRef.current = Date.now()
+              statistikRecordedRef.current = false
+              setStep('rennen')
+            }
+          }
+        }
+        return
+      }
       if (view === 'verben' && isVerbenTyp(selectedTyp)) {
         const questions = buildVerbenQuiz(selectedTyp)
         setQuizQuestions(questions)
@@ -839,12 +1536,61 @@ export function LernenPage() {
             ? ADJEKTIV_DEKLINATIONEN[selectedTyp]
             : []
       if (!examples || examples.length === 0) return
+
+      if (id === 'lernen') {
+        const { part1, part2, part3 } = buildDeklinationFullPoolAndParts(examples)
+        if (part1.length === 0) return
+        setDekParts([part1, part2, part3])
+        setDekStation(1)
+        setDekPhase('newMc')
+        setDekPrevWrong([])
+        setDekPrevCorrect([])
+        setDekResultsNewPart({ wrong: [], correct: [] })
+        setDekShowZwischenauswertung(false)
+        setDekStationLernenActive(true)
+        setDekStationTestMode(false)
+        setQuizQuestions(part1)
+        setQuizIndex(0)
+        setQuizAnswers(Array(part1.length).fill(null))
+        setQuizMode('lernen')
+        setTestInput('')
+        sessionStartRef.current = Date.now()
+        statistikRecordedRef.current = false
+        setStep('lernen')
+        return
+      }
+      if (id === 'test') {
+        const { part1, part2, part3 } = buildDeklinationFullPoolAndParts(examples)
+        if (part1.length === 0) return
+        setDekParts([part1, part2, part3])
+        setDekStation(1)
+        setDekPhase('newMc')
+        setDekPrevWrong([])
+        setDekPrevCorrect([])
+        setDekResultsNewPart({ wrong: [], correct: [] })
+        setDekShowZwischenauswertung(false)
+        setDekStationLernenActive(true)
+        setDekStationTestMode(true)
+        setDekTestTotalCorrect(0)
+        setDekTestTotalQuestions(0)
+        setQuizQuestions(part1)
+        setQuizIndex(0)
+        setQuizAnswers(Array(part1.length).fill(null))
+        setQuizMode('lernen')
+        setTestInput('')
+        sessionStartRef.current = Date.now()
+        statistikRecordedRef.current = false
+        setStep('test')
+        return
+      }
+
       const questions = buildQuiz(examples)
       setQuizQuestions(questions)
       setQuizIndex(0)
       setQuizAnswers(Array(questions.length).fill(null))
       setQuizMode(id)
       setTestInput('')
+      setDekStationLernenActive(false)
       sessionStartRef.current = Date.now()
       statistikRecordedRef.current = false
       setStep(id)
@@ -892,6 +1638,12 @@ export function LernenPage() {
       setVokabelQuizIndex(0)
       setVokabelQuizAnswers([])
       setVokabelQuizMode(null)
+      setDekStationLernenActive(false)
+      setDekShowZwischenauswertung(false)
+      setVokStationLernenActive(false)
+      setVokShowZwischenauswertung(false)
+      setShowDekTestAuswertung(false)
+      setShowVokTestAuswertung(false)
       return
     }
     if (step === 'spiel' && view === 'sachkunde') {
@@ -901,42 +1653,323 @@ export function LernenPage() {
       setSachkundeSpielMatched([])
       return
     }
+    if (view === 'fach') {
+      setView('themen')
+      setSelectedFachId(null)
+      setBreadcrumb([])
+      return
+    }
     if (step === 'chooseMode') {
+      if (view === 'vokabeln' && selectedFachId) {
+        setView('fach')
+        setStep(null)
+        setSelectedLernsetId(null)
+        const fach = getFachById(selectedFachId)
+        setBreadcrumb(fach ? [fach.name] : [])
+        return
+      }
+      if (view === 'ki-lernsets' && selectedFachId) {
+        setView('fach')
+        setStep(null)
+        setSelectedAiDeklinationSetId(null)
+        setKiSubCategory(null)
+        const fach = getFachById(selectedFachId)
+        setBreadcrumb(fach ? [fach.name] : [])
+        return
+      }
       setStep(null)
       setSelectedTyp(null)
       setSelectedLernsetId(null)
       setSelectedSachkundeTopicId(null)
+      setSelectedGrammatikTopicId(null)
+      setSelectedAiDeklinationSetId(null)
+      return
+    }
+    if (view === 'ki-lernsets' && !kiSubCategory && !selectedAiDeklinationSetId && selectedFachId) {
+      setView('fach')
+      const fach = getFachById(selectedFachId)
+      setBreadcrumb(fach ? [fach.name] : [])
+      return
+    }
+    if (view === 'grammatik' && step === null) {
+      setView('themen')
+      setBreadcrumb([])
+      setSelectedKlassenstufe(null)
+      return
+    }
+    if (view === 'vokabeln' && fromKiLernsetsVokabeln) {
+      goTo('ki-lernsets', ['KI-Lernsets'], true)
+      return
+    }
+    if (view === 'ki-lernsets' && selectedKarteikartenSetId) {
+      setSelectedKarteikartenSetId(null)
+      setStep(null)
+      return
+    }
+    if (view === 'ki-lernsets' && selectedAiDeklinationSetId) {
+      setSelectedAiDeklinationSetId(null)
+      setStep(null)
+      return
+    }
+    if (view === 'ki-lernsets' && kiSubCategory) {
+      setKiSubCategory(null)
+      setBreadcrumb(['KI-Lernsets'])
+      return
+    }
+    if (view === 'ki-lernsets') {
+      if (selectedFachId) {
+        setView('fach')
+        setStep(null)
+        const fach = getFachById(selectedFachId)
+        setBreadcrumb(fach ? [fach.name] : [])
+      } else if (selectedKlassenstufe != null) {
+        setView('grammatik')
+        setStep(null)
+        setBreadcrumb([`Klasse ${selectedKlassenstufe}`])
+      } else {
+        goTo('themen', [], true)
+      }
+      return
+    }
+    if (view === 'vokabeln') {
+      if (selectedFachId) {
+        setView('fach')
+        setStep(null)
+        setSelectedLernsetId(null)
+        const fach = getFachById(selectedFachId)
+        setBreadcrumb(fach ? [fach.name] : [])
+      } else if (selectedKlassenstufe != null) {
+        setView('grammatik')
+        setStep(null)
+        setBreadcrumb([`Klasse ${selectedKlassenstufe}`])
+      } else {
+        goTo('themen', [], true)
+      }
+      return
+    }
+    if (view === 'deklinationen') {
+      if (selectedKlassenstufe != null) {
+        setView('grammatik')
+        setStep(null)
+        setBreadcrumb([`Klasse ${selectedKlassenstufe}`])
+      } else {
+        goTo('themen', [], true)
+      }
       return
     }
     if (view === 'sachkunde' && step === null) {
-      goTo('themen', [], true)
+      if (selectedKlassenstufe != null) {
+        setView('grammatik')
+        setBreadcrumb([`Klasse ${selectedKlassenstufe}`])
+      } else {
+        goTo('themen', [], true)
+      }
       return
     }
-    if (view === 'deklinationen') goTo('themen', [], true)
-    else if (view === 'vokabeln') goTo('themen', [], true)
-    else if (view === 'verben' || view === 'substantive' || view === 'adjektive')
+    if (view === 'verben' || view === 'substantive' || view === 'adjektive')
       goTo('deklinationen', ['Endungen'], true)
   }
 
   const handleQuizAnswer = (optionIndex: number) => {
     if (quizAnswers[quizIndex] !== null) return
+    const currentQ = quizQuestions[quizIndex]
+    const correct = optionIndex === currentQ.correctIndex
     const newAnswers = [...quizAnswers]
     newAnswers[quizIndex] = optionIndex
-    setQuizAnswers(newAnswers)
-    if (quizIndex < quizQuestions.length - 1) {
-      setTimeout(() => setQuizIndex(quizIndex + 1), 400)
+    const reQueueWrong = quizMode === 'lernen' && !correct && !dekStationLernenActive
+    if (reQueueWrong) {
+      setQuizQuestions((prev) => [...prev, prev[quizIndex]])
+      setQuizAnswers([...newAnswers, null])
+      setQuizIndex(quizIndex + 1)
+    } else {
+      setQuizAnswers(newAnswers)
+      if (quizIndex < quizQuestions.length - 1) {
+        setTimeout(() => setQuizIndex(quizIndex + 1), 400)
+      }
     }
   }
 
   const handleTestPrüfen = () => {
     if (quizAnswers[quizIndex] !== null) return
     const answer = testInput.trim()
+    const currentQ = quizQuestions[quizIndex]
+    const correct = normalizeLatin(answer) === normalizeLatin(currentQ.correctAnswer)
     const newAnswers = [...quizAnswers]
     newAnswers[quizIndex] = answer
-    setQuizAnswers(newAnswers)
     setTestInput('')
-    if (quizIndex < quizQuestions.length - 1) {
-      setTimeout(() => setQuizIndex(quizIndex + 1), 400)
+    const reQueueWrong = quizMode === 'lernen' && !correct && !dekStationLernenActive
+    if (reQueueWrong) {
+      setQuizQuestions((prev) => [...prev, prev[quizIndex]])
+      setQuizAnswers((prev) => [...prev, null])
+      setQuizIndex(quizIndex + 1)
+    } else {
+      setQuizAnswers(newAnswers)
+      if (quizIndex < quizQuestions.length - 1) {
+        setTimeout(() => setQuizIndex(quizIndex + 1), 400)
+      }
+    }
+  }
+
+  const handleDekZwischenWeiter = () => {
+    setDekShowZwischenauswertung(false)
+    dekCompletedRef.current = false
+    if (dekStation === 5 && dekZwischenFromPhase === 'correctTest') {
+      setDekStationLernenActive(false)
+      return
+    }
+    if (dekStationTestMode && dekStation === 4 && dekZwischenFromPhase === 'correctTest') {
+      setShowDekTestAuswertung(true)
+      setDekStationLernenActive(false)
+      return
+    }
+    if (dekZwischenFromPhase === 'newMc') {
+      setDekPrevWrong(dekResultsNewPart.wrong)
+      setDekPrevCorrect(dekResultsNewPart.correct)
+    }
+    if (dekZwischenFromPhase === 'newMc' && dekStation <= 2) {
+      const nextStation = (dekStation + 1) as 2 | 3
+      setDekStation(nextStation)
+      setDekPhase('newMc')
+      const [, part2, part3] = dekParts
+      const nextPart = nextStation === 2 ? part2 : part3
+      setQuizQuestions(nextPart)
+      setQuizIndex(0)
+      setQuizAnswers(Array(nextPart.length).fill(null))
+      setQuizMode('lernen')
+      setTestInput('')
+      return
+    }
+    if (dekZwischenFromPhase === 'newMc' && dekStation === 3) {
+      setDekStation(4)
+      if (dekStationTestMode) {
+        setDekPhase('correctTest')
+        setQuizQuestions(dekPrevCorrect)
+        setQuizIndex(0)
+        setQuizAnswers(Array(dekPrevCorrect.length).fill(null))
+        setQuizMode('test')
+        setTestInput('')
+        if (dekPrevCorrect.length === 0) {
+          setShowDekTestAuswertung(true)
+          setDekStationLernenActive(false)
+        }
+        return
+      } else {
+        const wrongQueue = dekPrevWrong.length > 0 ? dekPrevWrong : dekResultsNewPart.wrong
+        if (wrongQueue.length === 0) {
+          setDekPhase('correctTest')
+          setQuizQuestions(dekPrevCorrect)
+          setQuizIndex(0)
+          setQuizAnswers(Array(dekPrevCorrect.length).fill(null))
+          setQuizMode('test')
+        } else {
+          setDekPhase('wrongMc')
+          setQuizQuestions(wrongQueue)
+          setQuizIndex(0)
+          setQuizAnswers(Array(wrongQueue.length).fill(null))
+          setQuizMode('lernen')
+        }
+      }
+      setTestInput('')
+      return
+    }
+    if (dekZwischenFromPhase === 'correctTest' && dekStation === 4 && !dekStationTestMode) {
+      setDekStation(5)
+      if (dekPrevWrong.length === 0) {
+        setDekPhase('correctTest')
+        setQuizQuestions(dekPrevCorrect)
+        setQuizIndex(0)
+        setQuizAnswers(Array(dekPrevCorrect.length).fill(null))
+        setQuizMode('test')
+      } else {
+        setDekPhase('wrongMc')
+        setQuizQuestions(dekPrevWrong)
+        setQuizIndex(0)
+        setQuizAnswers(Array(dekPrevWrong.length).fill(null))
+        setQuizMode('lernen')
+      }
+      setTestInput('')
+      return
+    }
+  }
+
+  const handleVokZwischenWeiter = () => {
+    setVokShowZwischenauswertung(false)
+    vokCompletedRef.current = false
+    if (vokStation === 5 && vokZwischenFromPhase === 'correctTest') {
+      setVokStationLernenActive(false)
+      return
+    }
+    if (vokStationTestMode && vokStation === 4 && vokZwischenFromPhase === 'correctTest') {
+      setShowVokTestAuswertung(true)
+      setVokStationLernenActive(false)
+      return
+    }
+    if (vokZwischenFromPhase === 'newMc') {
+      setVokPrevWrong(vokResultsNewPart.wrong)
+      setVokPrevCorrect(vokResultsNewPart.correct)
+    }
+    if (vokZwischenFromPhase === 'newMc' && vokStation <= 2) {
+      const nextStation = (vokStation + 1) as 2 | 3
+      setVokStation(nextStation)
+      setVokPhase('newMc')
+      const [, part2, part3] = vokParts
+      const nextPart = nextStation === 2 ? part2 : part3
+      setVokabelQuizQuestions(nextPart)
+      setVokabelQuizIndex(0)
+      setVokabelQuizAnswers(Array(nextPart.length).fill(null))
+      setVokabelQuizMode('lernen')
+      setVokabelTestInput('')
+      return
+    }
+    if (vokZwischenFromPhase === 'newMc' && vokStation === 3) {
+      setVokStation(4)
+      if (vokStationTestMode) {
+        setVokPhase('correctTest')
+        setVokabelQuizQuestions(vokPrevCorrect)
+        setVokabelQuizIndex(0)
+        setVokabelQuizAnswers(Array(vokPrevCorrect.length).fill(null))
+        setVokabelQuizMode('test')
+        setVokabelTestInput('')
+        if (vokPrevCorrect.length === 0) {
+          setShowVokTestAuswertung(true)
+          setVokStationLernenActive(false)
+        }
+        return
+      }
+      const wrongQueue = vokPrevWrong.length > 0 ? vokPrevWrong : vokResultsNewPart.wrong
+      if (wrongQueue.length === 0) {
+        setVokPhase('correctTest')
+        setVokabelQuizQuestions(vokPrevCorrect)
+        setVokabelQuizIndex(0)
+        setVokabelQuizAnswers(Array(vokPrevCorrect.length).fill(null))
+        setVokabelQuizMode('test')
+      } else {
+        setVokPhase('wrongMc')
+        setVokabelQuizQuestions(wrongQueue)
+        setVokabelQuizIndex(0)
+        setVokabelQuizAnswers(Array(wrongQueue.length).fill(null))
+        setVokabelQuizMode('lernen')
+      }
+      setVokabelTestInput('')
+      return
+    }
+    if (vokZwischenFromPhase === 'correctTest' && vokStation === 4 && !vokStationTestMode) {
+      setVokStation(5)
+      if (vokPrevWrong.length === 0) {
+        setVokPhase('correctTest')
+        setVokabelQuizQuestions(vokPrevCorrect)
+        setVokabelQuizIndex(0)
+        setVokabelQuizAnswers(Array(vokPrevCorrect.length).fill(null))
+        setVokabelQuizMode('test')
+      } else {
+        setVokPhase('wrongMc')
+        setVokabelQuizQuestions(vokPrevWrong)
+        setVokabelQuizIndex(0)
+        setVokabelQuizAnswers(Array(vokPrevWrong.length).fill(null))
+        setVokabelQuizMode('lernen')
+      }
+      setVokabelTestInput('')
+      return
     }
   }
 
@@ -948,6 +1981,7 @@ export function LernenPage() {
 
   const handleNochEinmal = () => {
     if (!quizMode) return
+    setShowDekTestAuswertung(false)
     if (view === 'verben' && isVerbenTyp(selectedTyp)) {
       const questions = buildVerbenQuiz(selectedTyp)
       setQuizQuestions(questions)
@@ -981,6 +2015,8 @@ export function LernenPage() {
 
   const handleZurStartseite = () => {
     setStep('chooseMode')
+    setShowDekTestAuswertung(false)
+    setShowVokTestAuswertung(false)
     setQuizQuestions([])
     setKarteikartenItems([])
     setKarteikartenIndex(0)
@@ -1015,8 +2051,8 @@ export function LernenPage() {
 
   const handleRennenDifficultyClick = (d: RennenDifficulty) => {
     let questions: VokabelQuizFrage[] = []
-    if (view === 'vokabeln' && selectedLernset && selectedLernset.items.length >= 2) {
-      questions = buildVokabelQuiz(selectedLernset.items, selectedLernset.items.length)
+    if ((view === 'vokabeln' || view === 'grammatik') && effectiveVokabelItems.length >= 2) {
+      questions = buildVokabelQuiz(effectiveVokabelItems, effectiveVokabelItems.length)
     } else if (view === 'sachkunde' && selectedSachkundeTopic && selectedSachkundeTopic.quiz.length >= 2) {
       questions = selectedSachkundeTopic.quiz.map(sachkundeQuizFrageToVokabelQuizFrage)
     } else if (view === 'verben' && isVerbenTyp(selectedTyp)) {
@@ -1031,12 +2067,16 @@ export function LernenPage() {
       if (examples.length > 0) questions = buildQuiz(examples).map(quizFrageToVokabelQuizFrage)
     }
     if (questions.length === 0) return
+    const now = Date.now()
     setRennenDifficulty(d)
     setRennenQuestions(questions)
     setRennenIndex(0)
     setRennenAnswers(Array(questions.length).fill(null))
     setRennenCarProgress(0)
     setRennenOpponentProgress(0)
+    setRennenStartTime(now)
+    setRennenElapsedMs(0)
+    rennenQuestionStartRef.current = now
   }
 
   const handleWortpaareCardClick = (cardIndex: number) => {
@@ -1050,8 +2090,10 @@ export function LernenPage() {
       const cardA = wortpaareCards[a]
       const cardB = wortpaareCards[b]
       if (cardA?.pairId === cardB?.pairId) {
-        setWortpaareMatched((m) => [...m, cardA.pairId])
-        setWortpaareFlipped([])
+        setTimeout(() => {
+          setWortpaareMatched((m) => [...m, cardA.pairId])
+          setWortpaareFlipped([])
+        }, 400)
       } else {
         setTimeout(() => setWortpaareFlipped([]), 700)
       }
@@ -1096,10 +2138,20 @@ export function LernenPage() {
     const n = rennenQuestions.length
     const carGain = 100 / n
     const oppGain = rennenDifficulty === 'leicht' ? (100 / n) * 0.65 : rennenDifficulty === 'mittel' ? (100 / n) * 0.85 : (100 / n) * 0.92
-    setRennenCarProgress((p) => Math.min(100, p + (correct ? carGain : 0)))
+    const now = Date.now()
+    const questionStart = rennenQuestionStartRef.current ?? now
+    const elapsedForQuestion = Math.max(0, now - questionStart)
+    const MAX_TIME_FOR_FULL_SPEED = 8000 // ms – bis zu dieser Zeit volle Punkte
+    const clamped = Math.min(elapsedForQuestion, MAX_TIME_FOR_FULL_SPEED)
+    const speedFactor = 0.4 + 0.6 * (1 - clamped / MAX_TIME_FOR_FULL_SPEED) // 1.0 bei sehr schneller Antwort, 0.4 bei sehr langsamer
+    const userGain = correct ? carGain * speedFactor : 0
+    setRennenCarProgress((p) => Math.min(100, p + userGain))
     setRennenOpponentProgress((p) => Math.min(100, p + oppGain))
     if (rennenIndex < n - 1) {
-      setTimeout(() => setRennenIndex(rennenIndex + 1), 600)
+      setTimeout(() => {
+        setRennenIndex(rennenIndex + 1)
+        rennenQuestionStartRef.current = Date.now()
+      }, 600)
     }
   }
 
@@ -1146,39 +2198,76 @@ export function LernenPage() {
 
   const handleSachkundeQuizAnswer = (optionIndex: number) => {
     if (sachkundeQuizAnswers[sachkundeQuizIndex] !== null) return
+    const q = sachkundeQuizQuestions[sachkundeQuizIndex]
+    const correct = optionIndex === q.correctIndex
     const newAnswers = [...sachkundeQuizAnswers]
     newAnswers[sachkundeQuizIndex] = optionIndex
-    setSachkundeQuizAnswers(newAnswers)
-    if (sachkundeQuizIndex < sachkundeQuizQuestions.length - 1) {
-      setTimeout(() => setSachkundeQuizIndex(sachkundeQuizIndex + 1), 400)
+    if (!correct) {
+      setSachkundeQuizQuestions((prev) => [...prev, prev[sachkundeQuizIndex]])
+      setSachkundeQuizAnswers([...newAnswers, null])
+      setSachkundeQuizIndex(sachkundeQuizIndex + 1)
+    } else {
+      setSachkundeQuizAnswers(newAnswers)
+      if (sachkundeQuizIndex < sachkundeQuizQuestions.length - 1) {
+        setTimeout(() => setSachkundeQuizIndex(sachkundeQuizIndex + 1), 400)
+      }
     }
   }
 
   const handleVokabelQuizAnswer = (optionIndex: number) => {
     if (vokabelQuizAnswers[vokabelQuizIndex] !== null) return
+    const q = vokabelQuizQuestions[vokabelQuizIndex]
+    const correct = optionIndex === q.correctIndex
+    if (q.lernsetId != null && q.itemIndex != null) {
+      recordReview(q.lernsetId, q.itemIndex, q.vokabel, correct)
+    }
     const newAnswers = [...vokabelQuizAnswers]
     newAnswers[vokabelQuizIndex] = optionIndex
-    setVokabelQuizAnswers(newAnswers)
-    if (vokabelQuizIndex < vokabelQuizQuestions.length - 1) {
-      setTimeout(() => setVokabelQuizIndex(vokabelQuizIndex + 1), 400)
+    if (vokabelQuizMode === 'lernen' && !correct && !vokStationLernenActive) {
+      setVokabelQuizQuestions((prev) => [...prev, prev[vokabelQuizIndex]])
+      setVokabelQuizAnswers([...newAnswers, null])
+      setVokabelQuizIndex(vokabelQuizIndex + 1)
+    } else {
+      setVokabelQuizAnswers(newAnswers)
+      if (vokabelQuizIndex < vokabelQuizQuestions.length - 1) {
+        setTimeout(() => setVokabelQuizIndex(vokabelQuizIndex + 1), 400)
+      }
     }
   }
 
   const handleVokabelTestPrüfen = () => {
     if (vokabelQuizAnswers[vokabelQuizIndex] !== null) return
     const answer = vokabelTestInput.trim()
+    const q = vokabelQuizQuestions[vokabelQuizIndex]
+    const correct = normalizeLatin(answer) === normalizeLatin(q.uebersetzung)
+    if (q.lernsetId != null && q.itemIndex != null) {
+      recordReview(q.lernsetId, q.itemIndex, q.vokabel, correct)
+    }
     const newAnswers = [...vokabelQuizAnswers]
     newAnswers[vokabelQuizIndex] = answer
-    setVokabelQuizAnswers(newAnswers)
     setVokabelTestInput('')
-    if (vokabelQuizIndex < vokabelQuizQuestions.length - 1) {
-      setTimeout(() => setVokabelQuizIndex(vokabelQuizIndex + 1), 400)
+    if (vokabelQuizMode === 'lernen' && !correct && !vokStationLernenActive) {
+      setVokabelQuizQuestions((prev) => [...prev, prev[vokabelQuizIndex]])
+      setVokabelQuizAnswers([...newAnswers, null])
+      setVokabelQuizIndex(vokabelQuizIndex + 1)
+    } else {
+      setVokabelQuizAnswers(newAnswers)
+      if (vokabelQuizIndex < vokabelQuizQuestions.length - 1) {
+        setTimeout(() => setVokabelQuizIndex(vokabelQuizIndex + 1), 400)
+      }
     }
   }
 
   const handleVokabelNochEinmal = () => {
-    if (selectedLernset && selectedLernset.items.length >= 2) {
-      const questions = buildVokabelQuiz(selectedLernset.items, FRAGEN_ANZAHL)
+    setShowVokTestAuswertung(false)
+    if (effectiveVokabelSetId && effectiveVokabelItems.length >= 2) {
+      const ordered = orderByDueFirst(effectiveVokabelSetId, effectiveVokabelItems)
+      const questions = buildVokabelQuizFromOrdered(
+        effectiveVokabelSetId,
+        ordered,
+        effectiveVokabelItems,
+        Math.max(FRAGEN_ANZAHL, Math.min(15, ordered.length))
+      )
       if (questions.length > 0) {
         setVokabelQuizQuestions(questions)
         setVokabelQuizIndex(0)
@@ -1219,8 +2308,15 @@ export function LernenPage() {
       setKarteikartenFlipped(false)
       return
     }
-    if (selectedLernset && selectedLernset.items.length > 0) {
-      setKarteikartenItems(shuffle(selectedLernset.items.map((i) => ({ front: i.vokabel, back: i.uebersetzung }))))
+    if ((view === 'substantive' || view === 'adjektive') && beispiele.length > 0) {
+      setKarteikartenItems(shuffle(buildDeklinationKarteikarten(beispiele)))
+      setKarteikartenIndex(0)
+      setKarteikartenResults([])
+      setKarteikartenFlipped(false)
+      return
+    }
+    if ((view === 'vokabeln' || view === 'grammatik') && effectiveVokabelItems.length > 0) {
+      setKarteikartenItems(shuffle(effectiveVokabelItems.map((i) => ({ front: i.vokabel, back: i.uebersetzung }))))
       setKarteikartenIndex(0)
       setKarteikartenResults([])
       setKarteikartenFlipped(false)
@@ -1240,8 +2336,10 @@ export function LernenPage() {
   }
 
   const handleWortpaareNochEinmal = () => {
-    if (view === 'vokabeln' && selectedLernset && selectedLernset.items.length >= 4) {
-      const items = selectedLernset.items
+    setWortpaareElapsedMs(0)
+    setWortpaareIsNewBest(false)
+    if ((view === 'vokabeln' || view === 'grammatik') && effectiveVokabelItems.length >= 4) {
+      const items = effectiveVokabelItems
       const count = Math.min(8, Math.floor(items.length / 2) * 2)
       const used = shuffle([...items]).slice(0, count)
       const cards: { id: number; text: string; pairId: number }[] = []
@@ -1303,8 +2401,8 @@ export function LernenPage() {
   }
 
   const handleGlücksradNochEinmal = () => {
-    if (view === 'vokabeln' && selectedLernset && selectedLernset.items.length >= 2) {
-      const questions = buildVokabelQuiz(selectedLernset.items, Math.min(10, selectedLernset.items.length))
+    if ((view === 'vokabeln' || view === 'grammatik') && effectiveVokabelItems.length >= 2) {
+      const questions = buildVokabelQuiz(effectiveVokabelItems, Math.min(10, effectiveVokabelItems.length))
       if (questions.length > 0) {
         setGlücksradQuestions(questions)
         setGlücksradIndex(0)
@@ -1369,6 +2467,9 @@ export function LernenPage() {
     setRennenAnswers([])
     setRennenCarProgress(0)
     setRennenOpponentProgress(0)
+    setRennenStartTime(0)
+    setRennenElapsedMs(0)
+    rennenQuestionStartRef.current = null
     statistikRecordedRef.current = false
   }
 
@@ -1384,19 +2485,105 @@ export function LernenPage() {
   const showChooseMode =
     ((isVerben || isSubstantive || isAdjektive) && step === 'chooseMode' && selectedTyp) ||
     (isVokabeln && step === 'chooseMode' && selectedLernsetId) ||
-    (view === 'sachkunde' && step === 'chooseMode' && selectedSachkundeTopic)
+    (view === 'grammatik' && step === 'chooseMode' && selectedGrammatikTopicId) ||
+    (view === 'sachkunde' && step === 'chooseMode' && selectedSachkundeTopic) ||
+    (view === 'ki-lernsets' && step === 'chooseMode' && selectedAiDeklinationSetId) ||
+    (view === 'ki-lernsets' && step === 'chooseMode' && selectedKarteikartenSetId)
+
+  const currentLessonStats = (() => {
+    if (!showChooseMode) return null
+    let lessonId: string
+    if (view === 'vokabeln' && selectedLernsetId) lessonId = selectedLernsetId
+    else if (view === 'grammatik' && selectedGrammatikTopicId) lessonId = `grammatik-${selectedGrammatikTopicId}`
+    else if (view === 'sachkunde' && selectedSachkundeTopicId) lessonId = `sachkunde-${selectedSachkundeTopicId}`
+    else if (view === 'ki-lernsets' && selectedKarteikartenSetId) lessonId = selectedKarteikartenSetId
+    else if (view === 'verben' && isVerbenTyp(selectedTyp)) lessonId = getVerbenLessonMeta(selectedTyp!).id
+    else if ((view === 'substantive' || view === 'adjektive') && selectedTyp) lessonId = `${view}-${selectedTyp}`
+    else if (view === 'ki-lernsets' && selectedAiDeklinationSetId) lessonId = selectedAiDeklinationSetId
+    else return null
+    const byLesson = getSessionCountByLesson()
+    const byAvg = getAveragePercentByLesson()
+    const sessionRow = byLesson.find((x) => x.lessonId === lessonId)
+    const avgRow = byAvg.find((x) => x.lessonId === lessonId)
+    const count = sessionRow?.count ?? 0
+    const avgPercent = avgRow?.avgPercent ?? null
+    if (count === 0 && avgPercent == null) return null
+    return { count, avgPercent }
+  })()
+
   const showAnschauen =
     ((isVerben || isSubstantive || isAdjektive) && step === 'anschauen' && selectedTyp) ||
     (isVokabeln && step === 'anschauen' && selectedLernsetId) ||
-    (view === 'sachkunde' && step === 'anschauen' && selectedSachkundeTopic)
-  const lernsets = isVokabeln ? getLernsets() : []
-  const selectedLernset = selectedLernsetId ? getLernsetById(selectedLernsetId) : null
-  const showQuiz = (step === 'lernen' || step === 'test') && quizQuestions.length > 0 && view !== 'vokabeln' && view !== 'sachkunde'
+    (view === 'grammatik' && step === 'anschauen' && selectedGrammatikTopicId) ||
+    (view === 'sachkunde' && step === 'anschauen' && selectedSachkundeTopic) ||
+    (view === 'ki-lernsets' && step === 'anschauen' && selectedAiDeklSet) ||
+    (view === 'ki-lernsets' && step === 'anschauen' && selectedKarteikartenSet)
+  const storedLernsets = isVokabeln ? getLernsets() : []
+  const lernsets = isVokabeln ? storedLernsets : []
+  const aiLernsets = isVokabeln ? lernsets.filter((s) => s.source === 'ai') : []
+  const manualLernsets = isVokabeln ? lernsets.filter((s) => s.source !== 'ai') : []
+  const selectedLernset = selectedLernsetId
+    ? getLernsetById(selectedLernsetId) ?? null
+    : null
+  const effectiveVokabelItems =
+    view === 'vokabeln' && selectedLernset
+      ? selectedLernset.items
+      : view === 'grammatik' && selectedGrammatikTopic
+        ? selectedGrammatikTopic.items
+        : []
+  const effectiveVokabelSetId =
+    view === 'vokabeln' && selectedLernset
+      ? selectedLernset.id
+      : view === 'grammatik' && selectedGrammatikTopic
+        ? `grammatik-${selectedGrammatikTopic.id}`
+        : null
+  const effectiveVokabelSetName =
+    view === 'vokabeln' && selectedLernset
+      ? selectedLernset.name
+      : view === 'grammatik' && selectedGrammatikTopic
+        ? selectedGrammatikTopic.title
+        : null
+
+  const allSearchItems = [
+    ...getLernsets().map((s) => ({ type: 'vokabeln' as const, id: s.id, title: s.name })),
+    ...GRAMMATIK_TOPICS.map((t) => ({ type: 'grammatik' as const, id: t.id, title: t.shortTitle ?? t.title })),
+  ]
+  const searchQueryNorm = searchQuery.trim().toLowerCase()
+  const searchResults =
+    searchQueryNorm.length >= 2
+      ? allSearchItems.filter(
+          (item) =>
+            item.title.toLowerCase().includes(searchQueryNorm) ||
+            searchQueryNorm.split(/\s+/).every((w) => item.title.toLowerCase().includes(w))
+        )
+      : []
+
+  const handleSearchResultClick = (type: 'vokabeln' | 'grammatik', id: string) => {
+    setSearchQuery('')
+    if (type === 'vokabeln') {
+      goTo('vokabeln', ['Vokabeln'], false)
+      setSelectedLernsetId(id)
+      setStep('chooseMode')
+    } else {
+      const topic = getGrammatikTopic(id)
+      if (topic) setSelectedKlassenstufe(topic.klasse)
+      setView('grammatik')
+      setBreadcrumb(topic ? [`Klasse ${topic.klasse}`] : ['Grammatik'])
+      setSelectedGrammatikTopicId(id)
+      setStep('chooseMode')
+    }
+  }
+
+  const showQuiz = (step === 'lernen' || step === 'test') && quizQuestions.length > 0 && view !== 'vokabeln' && view !== 'grammatik' && view !== 'sachkunde'
   const allAnswered = showQuiz && quizAnswers.every((a) => a !== null)
-  const showAuswertung = showQuiz && allAnswered
-  const showVokabelnQuiz = view === 'vokabeln' && (step === 'lernen' || step === 'test') && vokabelQuizQuestions.length > 0
+  const showAuswertung =
+    (showQuiz && allAnswered && !dekShowZwischenauswertung) ||
+    (showDekTestAuswertung && step === 'test' && (view === 'substantive' || view === 'adjektive' || view === 'ki-lernsets'))
+  const showVokabelnQuiz = (view === 'vokabeln' || view === 'grammatik' || (view === 'ki-lernsets' && !!selectedKarteikartenSetId)) && (step === 'lernen' || step === 'test') && vokabelQuizQuestions.length > 0
   const vokabelnQuizAllAnswered = showVokabelnQuiz && vokabelQuizAnswers.every((a) => a !== null)
-  const showVokabelnQuizAuswertung = showVokabelnQuiz && vokabelnQuizAllAnswered
+  const showVokabelnQuizAuswertung =
+    (showVokabelnQuiz && vokabelnQuizAllAnswered && !vokShowZwischenauswertung) ||
+    (showVokTestAuswertung && step === 'test' && (view === 'vokabeln' || view === 'grammatik' || (view === 'ki-lernsets' && !!selectedKarteikartenSetId)))
   const vokabelnPercent = showVokabelnQuizAuswertung && vokabelQuizQuestions.length > 0
     ? Math.round(
         (vokabelQuizQuestions.filter((q, i) => isVokabelAnswerCorrect(q, vokabelQuizAnswers[i])).length /
@@ -1453,6 +2640,82 @@ export function LernenPage() {
     ? Math.round((rennenCorrect / rennenQuestions.length) * 100)
     : 0
 
+  type SegmentState = 'correct' | 'wrong' | null
+  function getStreakFromSegments(segments: SegmentState[]): number {
+    let streak = 0
+    for (let i = segments.length - 1; i >= 0; i--) {
+      if (segments[i] === 'correct') streak++
+      else break
+    }
+    return streak
+  }
+
+  const MOTIVATION_PHRASES = [
+    'Du schaffst das!',
+    'Weiter so!',
+    'Super konzentriert!',
+    'Gut unterwegs!',
+    'Fast geschafft!',
+    'Bleib dran!',
+    'Sehr gut!',
+    'Du bist auf Kurs!',
+    'Noch ein bisschen!',
+    'Gut gemacht!',
+  ]
+
+  let progressSegments: SegmentState[] = []
+  let progressTotal = 0
+  let progressAnswered = 0
+  if ((step === 'lernen' || step === 'test') && (showQuiz || showVokabelnQuiz || showSachkundeQuiz) && !showAuswertung && !showVokabelnQuizAuswertung && !showSachkundeQuizAuswertung) {
+    if (showQuiz) {
+      progressTotal = quizQuestions.length
+      progressSegments = quizAnswers.map((a, i) =>
+        a === null ? null : isAnswerCorrect(quizQuestions[i], a) ? 'correct' : 'wrong'
+      )
+    } else if (showVokabelnQuiz) {
+      progressTotal = vokabelQuizQuestions.length
+      progressSegments = vokabelQuizAnswers.map((a, i) =>
+        a === null ? null : isVokabelAnswerCorrect(vokabelQuizQuestions[i], a) ? 'correct' : 'wrong'
+      )
+    } else if (showSachkundeQuiz) {
+      progressTotal = sachkundeQuizQuestions.length
+      progressSegments = sachkundeQuizAnswers.map((a, i) =>
+        a === null ? null : a === sachkundeQuizQuestions[i].correctIndex ? 'correct' : 'wrong'
+      )
+    }
+    progressAnswered = progressSegments.filter((s) => s !== null).length
+  } else if (showKarteikarten && !showKarteikartenAuswertung && karteikartenItems.length > 0) {
+    progressTotal = karteikartenItems.length
+    progressSegments = karteikartenItems.map((_, i) =>
+      i < karteikartenResults.length ? (karteikartenResults[i] ? 'correct' : 'wrong') : null
+    )
+    progressAnswered = karteikartenResults.length
+  } else if (showGlücksrad && !showGlücksradAuswertung && glücksradQuestions.length > 0) {
+    progressTotal = glücksradQuestions.length
+    progressSegments = glücksradAnswers.map((a, i) =>
+      a === null ? null : a === glücksradQuestions[i].correctIndex ? 'correct' : 'wrong'
+    )
+    progressAnswered = progressSegments.filter((s) => s !== null).length
+  } else if (showRennen && !showRennenAuswertung && rennenQuestions.length > 0) {
+    progressTotal = rennenQuestions.length
+    progressSegments = rennenAnswers.map((a, i) =>
+      a === null ? null : a === rennenQuestions[i].correctIndex ? 'correct' : 'wrong'
+    )
+    progressAnswered = progressSegments.filter((s) => s !== null).length
+  } else if (showWortpaare && !showWortpaareAuswertung && pairCount > 0) {
+    progressTotal = pairCount
+    progressSegments = Array.from({ length: pairCount }, (_, i) =>
+      i < wortpaareMatched.length ? 'correct' : null
+    )
+    progressAnswered = wortpaareMatched.length
+  }
+
+  const progressStreak = getStreakFromSegments(progressSegments)
+  const progressMotivation =
+    progressTotal > 0
+      ? MOTIVATION_PHRASES[(progressStreak + progressAnswered) % MOTIVATION_PHRASES.length]
+      : ''
+
   const correctCount = showAuswertung
     ? quizQuestions.filter((q, i) => isAnswerCorrect(q, quizAnswers[i])).length
     : 0
@@ -1465,9 +2728,22 @@ export function LernenPage() {
     showWortpaareAuswertung ||
     showGlücksradAuswertung ||
     showRennenAuswertung
-  const effectivePercent = showVokabelnQuizAuswertung
-    ? vokabelnPercent
-    : showKarteikartenAuswertung
+  const dekTestPercent =
+    step === 'test' && (view === 'substantive' || view === 'adjektive' || view === 'ki-lernsets') && dekTestTotalQuestions > 0
+      ? Math.round((100 * dekTestTotalCorrect) / dekTestTotalQuestions)
+      : 0
+  const vokTestPercent =
+    step === 'test' && view === 'vokabeln' && vokTestTotalQuestions > 0
+      ? Math.round((100 * vokTestTotalCorrect) / vokTestTotalQuestions)
+      : 0
+  const effectivePercent =
+    showAuswertung && dekTestTotalQuestions > 0 && (view === 'substantive' || view === 'adjektive' || view === 'ki-lernsets')
+      ? dekTestPercent
+      : showVokabelnQuizAuswertung && vokTestTotalQuestions > 0
+        ? vokTestPercent
+        : showVokabelnQuizAuswertung
+          ? vokabelnPercent
+          : showKarteikartenAuswertung
       ? karteikartenPercent
       : showSachkundeQuizAuswertung
         ? sachkundePercent
@@ -1478,6 +2754,10 @@ export function LernenPage() {
             : showRennenAuswertung
               ? rennenPercent
               : percent
+  const showTestGrade =
+    (showAuswertung && dekTestTotalQuestions > 0 && (view === 'substantive' || view === 'adjektive' || view === 'ki-lernsets')) ||
+    (showVokabelnQuizAuswertung && vokTestTotalQuestions > 0 && view === 'vokabeln')
+  const testGrade = showTestGrade ? percentToGrade(effectivePercent) : null
   const [displayPercent, setDisplayPercent] = useState(0)
   const [ringStroke, setRingStroke] = useState(0)
   const hasFiredConfettiRef = useRef(false)
@@ -1506,10 +2786,33 @@ export function LernenPage() {
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
   }, [showAnyAuswertung, effectivePercent])
+  const playSuccessSound = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      const playTone = (freq: number, start: number, duration: number) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.frequency.value = freq
+        osc.type = 'sine'
+        gain.gain.setValueAtTime(0.15, start)
+        gain.gain.exponentialRampToValueAtTime(0.01, start + duration)
+        osc.start(start)
+        osc.stop(start + duration)
+      }
+      playTone(523.25, 0, 0.15)
+      playTone(659.25, 0.15, 0.2)
+    } catch {
+      // ignore
+    }
+  }, [])
+
   useEffect(() => {
     if (!showAnyAuswertung || effectivePercent !== 100 || hasFiredConfettiRef.current) return
     hasFiredConfettiRef.current = true
     const mega = hasKonfettiExplosion
+    if (isOwned('erfolgs-sound')) playSuccessSound()
     const t = setTimeout(() => {
       const defaults = { origin: { y: 0.6 }, zIndex: 9999 }
       const colors = ['#6b7cf6', '#8b9aff', '#a5b3ff', '#c4ceff', '#e0e5ff']
@@ -1527,7 +2830,7 @@ export function LernenPage() {
       }
     }, 400)
     return () => clearTimeout(t)
-  }, [showAnyAuswertung, effectivePercent, hasKonfettiExplosion])
+  }, [showAnyAuswertung, effectivePercent, hasKonfettiExplosion, playSuccessSound])
 
   useEffect(() => {
     if (!showAnyAuswertung || statistikRecordedRef.current) return
@@ -1540,9 +2843,15 @@ export function LernenPage() {
     if (view === 'vokabeln' && selectedLernsetId && selectedLernset) {
       lessonId = selectedLernsetId
       lessonName = selectedLernset.name
+    } else if (view === 'grammatik' && selectedGrammatikTopicId && selectedGrammatikTopic) {
+      lessonId = `grammatik-${selectedGrammatikTopicId}`
+      lessonName = selectedGrammatikTopic.title
     } else if (view === 'sachkunde' && selectedSachkundeTopicId && selectedSachkundeTopic) {
       lessonId = `sachkunde-${selectedSachkundeTopicId}`
       lessonName = selectedSachkundeTopic.title
+    } else if (view === 'ki-lernsets' && selectedKarteikartenSetId && selectedKarteikartenSet) {
+      lessonId = selectedKarteikartenSetId
+      lessonName = selectedKarteikartenSet.name
     } else if (view === 'verben' && isVerbenTyp(selectedTyp)) {
       const meta = getVerbenLessonMeta(selectedTyp)
       lessonId = meta.id
@@ -1566,8 +2875,9 @@ export function LernenPage() {
     const streakResult = updateStreak()
     setStreakPopup({ streak: streakResult.streak, updated: streakResult.updated })
     const kronenResult = awardKronenForLesson(effectivePercent)
-    setCrownsEarned(kronenResult.awarded)
-    if (kronenResult.awarded > 0) setShowCrownRewardScreen(true)
+    const bonus = kronenResult.awarded > 0 && isOwned('taeglicher-bonus') ? addDailyBonusIfEligible() : 0
+    setCrownsEarned(kronenResult.awarded + bonus)
+    if (kronenResult.awarded + bonus > 0) setShowCrownRewardScreen(true)
     statistikRecordedRef.current = true
   }, [
     showAnyAuswertung,
@@ -1581,6 +2891,8 @@ export function LernenPage() {
     selectedTyp,
     selectedLernsetId,
     selectedLernset,
+    selectedGrammatikTopicId,
+    selectedGrammatikTopic,
     selectedSachkundeTopicId,
     selectedSachkundeTopic,
     typLabel,
@@ -1599,8 +2911,10 @@ export function LernenPage() {
   }, [showAnyAuswertung])
 
   const lessonNameForShare =
-    (view === 'vokabeln' && selectedLernset ? selectedLernset.name : null) ??
+    (effectiveVokabelSetName ?? null) ??
     (view === 'sachkunde' && selectedSachkundeTopic ? selectedSachkundeTopic.title : null) ??
+    (view === 'ki-lernsets' && selectedKarteikartenSet ? selectedKarteikartenSet.name : null) ??
+    (view === 'ki-lernsets' && selectedAiDeklSet ? selectedAiDeklSet.title : null) ??
     (view === 'verben' && isVerbenTyp(selectedTyp) ? getVerbenLessonMeta(selectedTyp).name : null) ??
     ((view === 'substantive' || view === 'adjektive') && selectedTyp
       ? DEKLINATION_LESSON_OPTIONS.find((o) => o.id === `${view}-${selectedTyp}`)?.name ?? typLabel
@@ -1612,6 +2926,14 @@ export function LernenPage() {
     const ok = await share(getShareResultText(effectivePercent, lessonNameForShare))
     setShareResultFeedback(ok ? 'ok' : 'fail')
     if (ok) setTimeout(() => setShareResultFeedback('idle'), 2000)
+  }
+
+  const handleShareLernset = async () => {
+    if (!selectedLernset) return
+    setShareLernsetFeedback('idle')
+    const ok = await share(getShareLernsetPayload(selectedLernset))
+    setShareLernsetFeedback(ok ? 'ok' : 'fail')
+    if (ok) setTimeout(() => setShareLernsetFeedback('idle'), 2000)
   }
 
   const streakConfettiFiredRef = useRef(false)
@@ -1666,20 +2988,58 @@ export function LernenPage() {
     (showRennen && !showRennenAuswertung)
 
   const progressText =
-    (step === 'lernen' || step === 'test') && !showAuswertung && !showVokabelnQuizAuswertung && !showSachkundeQuizAuswertung && (showQuiz || showVokabelnQuiz || showSachkundeQuiz)
-      ? `Frage ${showSachkundeQuiz ? sachkundeQuizIndex + 1 : showVokabelnQuiz ? vokabelQuizIndex + 1 : quizIndex + 1} / ${showSachkundeQuiz ? sachkundeQuizQuestions.length : showVokabelnQuiz ? vokabelQuizQuestions.length : quizQuestions.length}`
-      : showKarteikarten && !showKarteikartenAuswertung
+    (dekStationLernenActive && !dekShowZwischenauswertung) || (vokStationLernenActive && !vokShowZwischenauswertung)
+      ? `Station ${dekStationLernenActive ? dekStation : vokStation} von 5`
+      : (step === 'lernen' || step === 'test') && !showAuswertung && !showVokabelnQuizAuswertung && !showSachkundeQuizAuswertung && (showQuiz || showVokabelnQuiz || showSachkundeQuiz)
+        ? `Frage ${showSachkundeQuiz ? sachkundeQuizIndex + 1 : showVokabelnQuiz ? vokabelQuizIndex + 1 : quizIndex + 1} / ${showSachkundeQuiz ? sachkundeQuizQuestions.length : showVokabelnQuiz ? vokabelQuizQuestions.length : quizQuestions.length}`
+        : showKarteikarten && !showKarteikartenAuswertung
         ? `Karte ${karteikartenIndex + 1} / ${karteikartenItems.length}`
         : showWortpaare && !showWortpaareAuswertung
-          ? `Zeit: ${wortpaareTimerSec} s`
+          ? wortpaareOhneZeit
+            ? `Paare: ${wortpaareMatched.length} / ${pairCountDerived}`
+            : `Zeit: ${Math.floor(wortpaareElapsedMs / 60000)}:${(Math.floor(wortpaareElapsedMs / 1000) % 60).toString().padStart(2, '0')}.${(Math.floor(wortpaareElapsedMs / 10) % 100).toString().padStart(2, '0')}`
           : showGlücksrad && !showGlücksradAuswertung
             ? `Frage ${glücksradIndex + 1} / ${glücksradQuestions.length}`
             : showRennen && !showRennenAuswertung
-              ? `Frage ${rennenIndex + 1} / ${rennenQuestions.length}`
+              ? `Rennzeit: ${Math.floor(rennenElapsedMs / 60000)}:${(Math.floor(rennenElapsedMs / 1000) % 60)
+                  .toString()
+                  .padStart(2, '0')}.${(Math.floor(rennenElapsedMs / 10) % 100)
+                  .toString()
+                  .padStart(2, '0')} – Frage ${rennenIndex + 1} / ${rennenQuestions.length}`
               : ''
+
+  const handleContinueWeiter = () => setShowContinueDialog(false)
+  const handleContinueVonVorn = () => {
+    setView('themen')
+    setBreadcrumb([])
+    setSelectedTyp(null)
+    setSelectedLernsetId(null)
+    setSelectedSachkundeTopicId(null)
+    setStep(null)
+    setShowContinueDialog(false)
+  }
 
   return (
     <div className={`lernen-page ${view === 'themen' ? 'lernen-page--start' : ''}`}>
+      {showContinueDialog && (
+        <div className="lernen-continue-overlay" role="dialog" aria-modal="true" aria-labelledby="lernen-continue-title">
+          <div className="lernen-continue-backdrop" onClick={handleContinueWeiter} aria-hidden />
+          <div className="lernen-continue-dialog">
+            <h2 id="lernen-continue-title" className="lernen-continue-title">Weiter lernen?</h2>
+            <p className="lernen-continue-text">
+              Du warst zuletzt hier. Möchtest du hier weitermachen oder von vorn starten?
+            </p>
+            <div className="lernen-continue-buttons">
+              <button type="button" className="lernen-continue-btn lernen-continue-btn--weiter" onClick={handleContinueWeiter}>
+                Weiter hier
+              </button>
+              <button type="button" className="lernen-continue-btn lernen-continue-btn--vorn" onClick={handleContinueVonVorn}>
+                Von vorn
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <header className="lernen-header">
         <div className="lernen-header-left">
           {(breadcrumb.length > 0 || step !== null) && step !== 'lernen' && step !== 'test' && (
@@ -1690,15 +3050,108 @@ export function LernenPage() {
         </div>
         <h1 className="lernen-title">{view === 'themen' ? 'Lernen' : 'Lernmodus'}</h1>
         <div className="lernen-header-right">
-          {showProgress && (
+          {showProgress && progressTotal === 0 && (
             <span className={`lernen-progress-pill ${showWortpaare && !showWortpaareAuswertung ? 'lernen-progress-pill--timer' : ''}`}>
               {progressText}
             </span>
           )}
         </div>
       </header>
+
+      <div className="lernen-search-wrap">
+        <input
+          type="search"
+          className="lernen-search-input"
+          placeholder="Lernsets durchsuchen … (Vokabeln & Grammatik)"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Lernsets durchsuchen"
+          autoComplete="off"
+        />
+        {searchQueryNorm.length >= 2 && (
+          <div className="lernen-search-results" role="listbox" aria-label="Suchergebnisse">
+            {searchResults.length === 0 ? (
+              <p className="lernen-search-empty">Keine Lernsets gefunden.</p>
+            ) : (
+              <ul className="lernen-search-list">
+                {searchResults.map((item) => (
+                  <li key={`${item.type}-${item.id}`}>
+                    <button
+                      type="button"
+                      className="lernen-search-result-btn"
+                      onClick={() => handleSearchResultClick(item.type, item.id)}
+                      role="option"
+                    >
+                      <span className="lernen-search-result-title">{item.title}</span>
+                      <span className={`lernen-search-result-badge lernen-search-result-badge--${item.type}`}>
+                        {item.type === 'vokabeln' ? 'Vokabeln' : 'Grammatik'}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
+      {(dekStationLernenActive || vokStationLernenActive) && (
+        <div className="lernen-progress-bar-wrap lernen-progress-bar-wrap--stations">
+          <div className="lernen-progress-bar-meta">
+            <span className="lernen-progress-bar-motivation" aria-hidden>
+              {progressMotivation}
+            </span>
+            <span className="lernen-progress-bar-count">Station {dekStationLernenActive ? dekStation : vokStation} von 5</span>
+          </div>
+          <div className="lernen-progress-bar lernen-progress-bar--stations" role="progressbar" aria-valuenow={dekStationLernenActive ? dekStation : vokStation} aria-valuemin={1} aria-valuemax={5} aria-label={`Station ${dekStationLernenActive ? dekStation : vokStation} von 5`}>
+            {([1, 2, 3, 4, 5] as const).map((s) => {
+              const currentStation = dekStationLernenActive ? dekStation : vokStation
+              return (
+                <div key={s} className={`lernen-progress-bar-segment lernen-progress-bar-segment--station ${s <= currentStation ? 'lernen-progress-bar-segment--done' : ''} ${s === currentStation ? 'lernen-progress-bar-segment--current' : ''}`} title={`Station ${s}`} />
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {showProgress && progressTotal > 0 && !dekStationLernenActive && !vokStationLernenActive && (
+        <div className="lernen-progress-bar-wrap">
+          <div className="lernen-progress-bar-meta">
+            <span className="lernen-progress-bar-motivation" aria-hidden>
+              {progressMotivation}
+            </span>
+            {progressStreak > 0 && (
+              <span className="lernen-progress-bar-streak" aria-label={`${progressStreak} richtige in Folge`}>
+                <span className="lernen-progress-bar-streak-icon" aria-hidden>🔥</span>
+                <span>{progressStreak}</span>
+                <span className="lernen-progress-bar-streak-label"> in Folge</span>
+              </span>
+            )}
+          </div>
+          <div
+            className="lernen-progress-bar"
+            role="progressbar"
+            aria-valuenow={progressAnswered}
+            aria-valuemin={0}
+            aria-valuemax={progressTotal}
+            aria-label={`Fortschritt: ${progressAnswered} von ${progressTotal}`}
+          >
+            {progressSegments.map((state, i) => (
+              <div
+                key={i}
+                className={`lernen-progress-bar-segment lernen-progress-bar-segment--${state ?? 'pending'}`}
+                title={state === 'correct' ? 'Richtig' : state === 'wrong' ? 'Falsch' : 'Noch nicht beantwortet'}
+              />
+            ))}
+          </div>
+          <div className="lernen-progress-bar-count">
+            {progressAnswered} / {progressTotal}
+          </div>
+        </div>
+      )}
+
       {view === 'themen' && (
-        <p className="lernen-welcome">Wähle, was du üben möchtest</p>
+        <p className="lernen-welcome">Noch keine Inhalte – erstelle Lernsets unter Lernsets &amp; KI</p>
       )}
 
       <div className="lernen-carousel">
@@ -1711,18 +3164,9 @@ export function LernenPage() {
             aria-hidden
           >
             {transitionFrom === 'themen' && (
-              <div className="lernen-grid lernen-grid--themen">
-                {THEMEN.map((t, i) => (
-                  <div
-                    key={t.id}
-                    className={`lernen-tile lernen-tile--thema ${t.active ? 'lernen-tile--active' : 'lernen-tile--disabled'}`}
-                    style={{ animationDelay: `${i * 0.08}s` }}
-                  >
-                    {t.Icon && <t.Icon className="lernen-tile-icon" />}
-                    <span className="lernen-tile-label">{t.label}</span>
-                    {!t.active && <span className="lernen-tile-badge">Bald</span>}
-                  </div>
-                ))}
+              <div className="lernen-inhalt lernen-empty-state">
+                <p className="lernen-modus-frage">Lernen</p>
+                <p className="lernen-placeholder">Noch keine Inhalte.</p>
               </div>
             )}
             {transitionFrom === 'deklinationen' && (
@@ -1789,21 +3233,137 @@ export function LernenPage() {
           key={view}
         >
           {view === 'themen' && (
-            <div className="lernen-grid lernen-grid--themen">
-              {THEMEN.map((t, i) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={`lernen-tile lernen-tile--thema ${t.active ? 'lernen-tile--active' : 'lernen-tile--disabled'}`}
-                  onClick={() => t.active && handleThemaClick(t.id)}
-                  disabled={!t.active}
-                  style={{ animationDelay: `${i * 0.08}s` }}
-                >
-                  {t.Icon && <t.Icon className="lernen-tile-icon" />}
-                  <span className="lernen-tile-label">{t.label}</span>
-                  {!t.active && <span className="lernen-tile-badge">Bald</span>}
-                </button>
-              ))}
+            <div className="lernen-inhalt">
+              <p className="lernen-modus-frage">Fächer</p>
+              <p className="lernen-modus-untertitel">Wähle einen Ordner – deine Lernsets sind nach Fächern sortiert.</p>
+              <div className="lernen-grid lernen-grid--faecher">
+                {getFaecher().map((fach, i) => (
+                  <button
+                    key={fach.id}
+                    type="button"
+                    className="lernen-folder"
+                    onClick={() => {
+                      setView('fach')
+                      setSelectedFachId(fach.id)
+                      setBreadcrumb([fach.name])
+                    }}
+                    style={{
+                      animationDelay: `${i * 0.06}s`,
+                      ['--folder-color' as string]: fach.color,
+                      ['--folder-color-dark' as string]: fach.color,
+                    }}
+                  >
+                    <span className="lernen-folder-tab" aria-hidden />
+                    <span className="lernen-folder-body">
+                      <span className="lernen-folder-icon" aria-hidden>
+                        {(() => {
+                          const Icon = FAECHER_ICON_MAP[fach.id]
+                          return Icon ? <Icon className="lernen-folder-icon-svg" /> : null
+                        })()}
+                      </span>
+                      <span className="lernen-folder-name">{fach.name}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {view === 'fach' && selectedFachId && (
+            <div className="lernen-inhalt lernen-fach-inhalt">
+              {(() => {
+                const fach = getFachById(selectedFachId)
+                const vokabelSets = getLernsetsByFach(selectedFachId)
+                const deklSets = getAiDeklinationSetsByFach(selectedFachId)
+                const karteikartenSets = getKarteikartenSetsByFach(selectedFachId)
+                if (!fach) return <p className="lernen-placeholder">Fach nicht gefunden.</p>
+                const hasContent = vokabelSets.length > 0 || deklSets.length > 0 || karteikartenSets.length > 0
+                return (
+                  <>
+                    <p className="lernen-modus-frage">{fach.name}</p>
+                    <p className="lernen-modus-untertitel">Wähle ein Lernset zum Üben.</p>
+                    {!hasContent ? (
+                      <p className="lernen-placeholder">In diesem Fach sind noch keine Lernsets. Erstelle welche unter „Lernsets &amp; KI“ und ordne sie diesem Fach zu.</p>
+                    ) : (
+                      <div className="lernen-fach-sets">
+                        {vokabelSets.length > 0 && (
+                          <div className="lernen-fach-group">
+                            <span className="lernen-fach-group-title">Vokabel-Lernsets</span>
+                            <div className="lernen-fach-set-list">
+                              {vokabelSets.map((set) => (
+                                <button
+                                  key={set.id}
+                                  type="button"
+                                  className="lernen-fach-set-btn lernen-fach-set-btn--vokabel"
+                                  onClick={() => {
+                                    setView('vokabeln')
+                                    setSelectedLernsetId(set.id)
+                                    setStep('chooseMode')
+                                    setBreadcrumb([fach.name, set.name])
+                                  }}
+                                >
+                                  <BookMarkIcon className="lernen-fach-set-icon" aria-hidden />
+                                  <span className="lernen-fach-set-name">{set.name}</span>
+                                  <span className="lernen-fach-set-meta">{set.items.length} Vokabeln</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {karteikartenSets.length > 0 && (
+                          <div className="lernen-fach-group">
+                            <span className="lernen-fach-group-title">Karteikarten</span>
+                            <div className="lernen-fach-set-list">
+                              {karteikartenSets.map((set) => (
+                                <button
+                                  key={set.id}
+                                  type="button"
+                                  className="lernen-fach-set-btn"
+                                  onClick={() => {
+                                    setView('ki-lernsets')
+                                    setKiSubCategory('karteikarten')
+                                    setSelectedKarteikartenSetId(set.id)
+                                    setStep('chooseMode')
+                                    setBreadcrumb([fach.name, set.name])
+                                  }}
+                                >
+                                  <CardIcon className="lernen-fach-set-icon" />
+                                  <span className="lernen-fach-set-name">{set.name}</span>
+                                  <span className="lernen-fach-set-meta">{set.items.length} {set.items.length === 1 ? 'Karte' : 'Karten'}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {deklSets.length > 0 && (
+                          <div className="lernen-fach-group">
+                            <span className="lernen-fach-group-title">Deklination (KI)</span>
+                            <div className="lernen-fach-set-list">
+                              {deklSets.map((set) => (
+                                <button
+                                  key={set.id}
+                                  type="button"
+                                  className="lernen-fach-set-btn"
+                                  onClick={() => {
+                                    setView('ki-lernsets')
+                                    setKiSubCategory('deklination')
+                                    setSelectedAiDeklinationSetId(set.id)
+                                    setStep('chooseMode')
+                                    setBreadcrumb([fach.name, set.title])
+                                  }}
+                                >
+                                  <TableIcon className="lernen-fach-set-icon" />
+                                  <span className="lernen-fach-set-name">{set.title}</span>
+                                  <span className="lernen-fach-set-meta">{set.typ}-Deklination</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           )}
           {view === 'deklinationen' && (
@@ -1842,64 +3402,331 @@ export function LernenPage() {
             </div>
           )}
 
+          {view === 'grammatik' && step === null && (
+            <div className="lernen-inhalt">
+              {selectedKlassenstufe == null ? (
+                <>
+                  <p className="lernen-modus-frage">Welche Klasse bist du?</p>
+                  <p className="lernen-modus-untertitel">Wähle deine Klassenstufe.</p>
+                  <div className="lernen-grid lernen-grid--options lernen-grid--klassen">
+                    {KLASSEN.map((k, i) => (
+                      <button
+                        key={k.id}
+                        type="button"
+                        className="lernen-tile lernen-tile--option lernen-tile--klasse"
+                        onClick={() => handleKlasseClick(k.id)}
+                        style={{ animationDelay: `${i * 0.08}s` }}
+                      >
+                        <span className="lernen-tile-label">{k.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="lernen-modus-frage">Klasse {selectedKlassenstufe} – Wähle ein Thema</p>
+                  <p className="lernen-modus-untertitel">Grammatik & Deklination · Vokabeln · Sachkunde · KI</p>
+                  <div className="lernen-grid lernen-grid--options lernen-grid--grammatik">
+                    {getGrammatikTopicsForKlasse(selectedKlassenstufe).map((topic, i) => (
+                      <button
+                        key={topic.id}
+                        type="button"
+                        className="lernen-tile lernen-tile--option lernen-tile--grammatik"
+                        onClick={() => handleGrammatikTopicClick(topic.id)}
+                        style={{ animationDelay: `${i * 0.08}s` }}
+                      >
+                        <span className="lernen-tile-label lernen-tile-label--grammatik">{topic.shortTitle ?? topic.title}</span>
+                        <span className="lernen-tile-meta">{topic.items.length} Karten</span>
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="lernen-tile lernen-tile--option lernen-tile--dashboard-extra"
+                      onClick={() => handleKlassenDashboardClick('vokabeln')}
+                      style={{ animationDelay: `${(getGrammatikTopicsForKlasse(selectedKlassenstufe).length) * 0.08}s` }}
+                    >
+                      <BookMarkIcon className="lernen-tile-icon" />
+                      <span className="lernen-tile-label">Vokabeln</span>
+                      <span className="lernen-tile-meta">Eigene & KI-Sets</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="lernen-tile lernen-tile--option lernen-tile--dashboard-extra"
+                      onClick={() => handleKlassenDashboardClick('deklinationen')}
+                      style={{ animationDelay: `${(getGrammatikTopicsForKlasse(selectedKlassenstufe).length + 1) * 0.08}s` }}
+                    >
+                      <TableIcon className="lernen-tile-icon" />
+                      <span className="lernen-tile-label">Deklinationen üben</span>
+                      <span className="lernen-tile-meta">Substantive · Adjektive · Verben</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="lernen-tile lernen-tile--option lernen-tile--dashboard-extra"
+                      onClick={() => handleKlassenDashboardClick('sachkunde')}
+                      style={{ animationDelay: `${(getGrammatikTopicsForKlasse(selectedKlassenstufe).length + 2) * 0.08}s` }}
+                    >
+                      <LightbulbIcon className="lernen-tile-icon" />
+                      <span className="lernen-tile-label">Sachkunde</span>
+                      <span className="lernen-tile-meta">Römisches Leben</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="lernen-tile lernen-tile--option lernen-tile--dashboard-extra"
+                      onClick={() => handleKlassenDashboardClick('ki-lernsets')}
+                      style={{ animationDelay: `${(getGrammatikTopicsForKlasse(selectedKlassenstufe).length + 3) * 0.08}s` }}
+                    >
+                      <ZapIcon className="lernen-tile-icon" />
+                      <span className="lernen-tile-label">KI-Lernsets</span>
+                      <span className="lernen-tile-meta">Mit KI erstellen</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {view === 'vokabeln' && !selectedLernsetId && (
             <div className="lernen-inhalt">
-              <p className="lernen-modus-frage">Welches Lernset möchtest du?</p>
-              {lernsets.length === 0 ? (
-                <p className="lernen-placeholder">Noch keine Lernsets vorhanden. Erstelle zuerst unter „Neu“ ein Set.</p>
+              <p className="lernen-modus-frage">
+                {fromKiLernsetsVokabeln ? 'Welches KI-Vokabelset möchtest du?' : 'Welches Lernset möchtest du?'}
+              </p>
+              {(fromKiLernsetsVokabeln ? aiLernsets : lernsets).length === 0 ? (
+                <p className="lernen-placeholder">
+                  {fromKiLernsetsVokabeln
+                    ? 'Noch keine KI-Vokabelsets. Erstelle welche unter „KI“.'
+                    : 'Noch keine Lernsets vorhanden. Erstelle zuerst unter „Neu“ ein Set.'}
+                </p>
+              ) : (
+                <>
+                  {!fromKiLernsetsVokabeln && manualLernsets.length > 0 && (
+                    <>
+                      <p className="lernen-modus-untertitel">Eigene Lernsets</p>
+                      <div className="lernen-grid lernen-grid--options">
+                        {manualLernsets.map((set, i) => {
+                          const isFav = favoritenIds.includes(set.id)
+                          return (
+                            <button
+                              key={set.id}
+                              type="button"
+                              className="lernen-tile lernen-tile--option lernen-tile--with-star"
+                              onClick={() => {
+                                setSelectedLernsetId(set.id)
+                                setStep('chooseMode')
+                              }}
+                              style={{ animationDelay: `${i * 0.08}s` }}
+                            >
+                              <span className="lernen-tile-label">{set.name}</span>
+                              <span className="lernen-tile-meta">{set.items.length} Vokabeln</span>
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                className="lernen-star-btn"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  toggleFavorit(set.id)
+                                  setFavoritenIds(getFavoritenIds())
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    toggleFavorit(set.id)
+                                    setFavoritenIds(getFavoritenIds())
+                                  }
+                                }}
+                                aria-label={
+                                  isFav ? `${set.name} aus Favoriten entfernen` : `${set.name} zu Favoriten hinzufügen`
+                                }
+                                title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                              >
+                                {isFav ? (
+                                  <StarIconFilled className="lernen-star-icon lernen-star-icon--filled" />
+                                ) : (
+                                  <StarIcon className="lernen-star-icon" />
+                                )}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )}
+
+                  {aiLernsets.length > 0 && (
+                    <>
+                      {!fromKiLernsetsVokabeln && <p className="lernen-modus-untertitel">KI erstellt</p>}
+                      <div className="lernen-grid lernen-grid--options">
+                        {aiLernsets.map((set, i) => {
+                          const isFav = favoritenIds.includes(set.id)
+                          const delayBase = fromKiLernsetsVokabeln ? 0 : manualLernsets.length
+                          return (
+                            <button
+                              key={set.id}
+                              type="button"
+                              className="lernen-tile lernen-tile--option lernen-tile--with-star"
+                              onClick={() => {
+                                setSelectedLernsetId(set.id)
+                                setStep('chooseMode')
+                              }}
+                              style={{ animationDelay: `${(delayBase + i) * 0.08}s` }}
+                            >
+                              <span className="lernen-tile-label">{set.name}</span>
+                              <span className="lernen-tile-meta">{set.items.length} Vokabeln</span>
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                className="lernen-star-btn"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  toggleFavorit(set.id)
+                                  setFavoritenIds(getFavoritenIds())
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    toggleFavorit(set.id)
+                                    setFavoritenIds(getFavoritenIds())
+                                  }
+                                }}
+                                aria-label={
+                                  isFav ? `${set.name} aus Favoriten entfernen` : `${set.name} zu Favoriten hinzufügen`
+                                }
+                                title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                              >
+                                {isFav ? (
+                                  <StarIconFilled className="lernen-star-icon lernen-star-icon--filled" />
+                                ) : (
+                                  <StarIcon className="lernen-star-icon" />
+                                )}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {view === 'ki-lernsets' && step === null && !kiSubCategory && (
+            <div className="lernen-inhalt">
+              <p className="lernen-modus-frage">Wähle eine Kategorie</p>
+              <div className="lernen-grid lernen-grid--options">
+                <button
+                  type="button"
+                  className="lernen-tile lernen-tile--option"
+                  onClick={() => {
+                    setFromKiLernsetsVokabeln(true)
+                    goTo('vokabeln', ['KI-Lernsets', 'Vokabeln'], false)
+                  }}
+                  style={{ animationDelay: '0s' }}
+                >
+                  <BookMarkIcon className="lernen-tile-icon" />
+                  <span className="lernen-tile-label">Vokabeln</span>
+                  <span className="lernen-tile-meta">KI-Vokabelsets</span>
+                </button>
+                <button
+                  type="button"
+                  className="lernen-tile lernen-tile--option"
+                  onClick={() => {
+                    setKiSubCategory('deklination')
+                    setBreadcrumb(['KI-Lernsets', 'Deklination'])
+                  }}
+                  style={{ animationDelay: '0.1s' }}
+                >
+                  <TableIcon className="lernen-tile-icon" />
+                  <span className="lernen-tile-label">Deklination</span>
+                  <span className="lernen-tile-meta">KI-Deklinationssets</span>
+                </button>
+                <button
+                  type="button"
+                  className="lernen-tile lernen-tile--option"
+                  onClick={() => {
+                    setKiSubCategory('karteikarten')
+                    setBreadcrumb(['KI-Lernsets', 'Karteikarten'])
+                  }}
+                  style={{ animationDelay: '0.15s' }}
+                >
+                  <CardIcon className="lernen-tile-icon" />
+                  <span className="lernen-tile-label">Karteikarten</span>
+                  <span className="lernen-tile-meta">Eigene Karteikarten-Lernsets</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {view === 'ki-lernsets' && kiSubCategory === 'karteikarten' && !selectedKarteikartenSetId && (
+            <div className="lernen-inhalt">
+              <p className="lernen-modus-frage">Welches Karteikarten-Lernset möchtest du?</p>
+              {getKarteikartenSets().length === 0 ? (
+                <p className="lernen-placeholder">
+                  Noch keine Karteikarten-Lernsets. Erstelle welche unter „Lernsets &amp; KI“ → „Erstellen“ → „Karteikarten erstellen“.
+                </p>
               ) : (
                 <div className="lernen-grid lernen-grid--options">
-                  {lernsets.map((set, i) => {
-                    const isFav = favoritenIds.includes(set.id)
-                    return (
+                  {getKarteikartenSets()
+                    .slice()
+                    .sort((a, b) => b.createdAt - a.createdAt)
+                    .map((set, i) => (
                       <button
                         key={set.id}
                         type="button"
-                        className="lernen-tile lernen-tile--option lernen-tile--with-star"
+                        className="lernen-tile lernen-tile--option"
                         onClick={() => {
-                          setSelectedLernsetId(set.id)
+                          setSelectedKarteikartenSetId(set.id)
                           setStep('chooseMode')
                         }}
                         style={{ animationDelay: `${i * 0.08}s` }}
                       >
                         <span className="lernen-tile-label">{set.name}</span>
-                        <span className="lernen-tile-meta">{set.items.length} Vokabeln</span>
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          className="lernen-star-btn"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            toggleFavorit(set.id)
-                            setFavoritenIds(getFavoritenIds())
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              toggleFavorit(set.id)
-                              setFavoritenIds(getFavoritenIds())
-                            }
-                          }}
-                          aria-label={isFav ? `${set.name} aus Favoriten entfernen` : `${set.name} zu Favoriten hinzufügen`}
-                          title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                        >
-                          {isFav ? (
-                            <StarIconFilled className="lernen-star-icon lernen-star-icon--filled" />
-                          ) : (
-                            <StarIcon className="lernen-star-icon" />
-                          )}
+                        <span className="lernen-tile-meta">
+                          {set.items.length} {set.items.length === 1 ? 'Karte' : 'Karten'}
                         </span>
                       </button>
-                    )
-                  })}
+                    ))}
                 </div>
               )}
             </div>
           )}
 
-          {(view === 'verben' || view === 'substantive' || view === 'adjektive' || (view === 'vokabeln' && selectedLernsetId) || (view === 'sachkunde' && selectedSachkundeTopicId)) && (
+          {view === 'ki-lernsets' && kiSubCategory === 'deklination' && !selectedAiDeklinationSetId && (
+            <div className="lernen-inhalt">
+              <p className="lernen-modus-frage">Welches KI-Deklinationsset möchtest du?</p>
+              {getAiDeklinationSets().length === 0 ? (
+                <p className="lernen-placeholder">Noch keine KI-Deklinationssets. Erstelle welche unter „KI“.</p>
+              ) : (
+                <div className="lernen-grid lernen-grid--options">
+                  {getAiDeklinationSets()
+                    .slice()
+                    .sort((a, b) => b.createdAt - a.createdAt)
+                    .map((set, i) => (
+                      <button
+                        key={set.id}
+                        type="button"
+                        className="lernen-tile lernen-tile--option"
+                        onClick={() => {
+                          setSelectedAiDeklinationSetId(set.id)
+                          setStep('chooseMode')
+                        }}
+                        style={{ animationDelay: `${i * 0.08}s` }}
+                      >
+                        <span className="lernen-tile-label">{set.title}</span>
+                        <span className="lernen-tile-meta">
+                          {set.typ.toUpperCase()}-Deklination · {set.beispiel.name}
+                        </span>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(view === 'verben' || view === 'substantive' || view === 'adjektive' || (view === 'vokabeln' && selectedLernsetId) || (view === 'grammatik' && selectedGrammatikTopicId) || (view === 'sachkunde' && selectedSachkundeTopicId) || (view === 'ki-lernsets' && selectedAiDeklinationSetId)) && (
             <div key={`content-${view}-${step}`} className="lernen-inhalt">
               {showTypGrid && (
                 <div className="lernen-grid lernen-grid--typen">
@@ -1954,6 +3781,31 @@ export function LernenPage() {
                   <p className="lernen-modus-frage">
                     {view === 'sachkunde' ? 'Was möchtest du machen?' : 'Welchen Lernmodus möchtest du?'}
                   </p>
+                  {currentLessonStats && (
+                    <p className="lernen-modus-fortschritt" aria-live="polite">
+                      {currentLessonStats.count > 0 && (
+                        <>Du hast diese Lektion {currentLessonStats.count} Mal absolviert</>
+                      )}
+                      {currentLessonStats.count > 0 && currentLessonStats.avgPercent != null && ' · '}
+                      {currentLessonStats.avgPercent != null && (
+                        <>Ø {currentLessonStats.avgPercent} %</>
+                      )}
+                    </p>
+                  )}
+                  {view === 'vokabeln' && selectedLernset && (
+                    <div className="lernen-modus-share-lernset">
+                      <button
+                        type="button"
+                        className="lernen-modus-share-lernset-btn"
+                        onClick={handleShareLernset}
+                        aria-label="Lernset teilen"
+                      >
+                        <ShareIcon className="lernen-modus-share-lernset-icon" />
+                        <span>Lernset teilen</span>
+                      </button>
+                      {shareLernsetFeedback === 'ok' && <span className="lernen-modus-share-lernset-ok">Kopiert!</span>}
+                    </div>
+                  )}
                   <div className="lernen-grid lernen-grid--options">
                     {view === 'sachkunde' ? (
                       <>
@@ -1996,12 +3848,21 @@ export function LernenPage() {
                             (m.id === 'lernen' || m.id === 'test') &&
                             (view === 'vokabeln'
                               ? !selectedLernsetId || !selectedLernset || selectedLernset.items.length < 2
-                              : (view !== 'substantive' && view !== 'adjektive' && view !== 'verben') ||
-                                (view === 'verben' ? !isVerbenTyp(selectedTyp) : !selectedTyp)) ||
+                              : view === 'grammatik'
+                                ? !selectedGrammatikTopicId || !selectedGrammatikTopic || effectiveVokabelItems.length < 2
+                                : view === 'ki-lernsets' && selectedKarteikartenSetId
+                                  ? !selectedKarteikartenSet || karteikartenSetItems.length < 2
+                                  : view === 'ki-lernsets'
+                                    ? !selectedAiDeklSet || beispiele.length === 0
+                                    : (view !== 'substantive' && view !== 'adjektive' && view !== 'verben') ||
+                                      (view === 'verben' ? !isVerbenTyp(selectedTyp) : !selectedTyp)) ||
                             (m.id === 'karteikarten' &&
                               !(
-                                (view === 'vokabeln' && selectedLernset && selectedLernset.items.length > 0) ||
-                                (view === 'verben' && isVerbenTyp(selectedTyp))
+                                ((view === 'vokabeln' || view === 'grammatik') && effectiveVokabelItems.length > 0) ||
+                                (view === 'verben' && isVerbenTyp(selectedTyp)) ||
+                                ((view === 'substantive' || view === 'adjektive') && selectedTyp && beispiele.length > 0) ||
+                                (view === 'ki-lernsets' && selectedAiDeklSet && beispiele.length > 0) ||
+                                (view === 'ki-lernsets' && selectedKarteikartenSet && karteikartenSetItems.length > 0)
                               ))
                           }
                           style={{ animationDelay: `${i * 0.1}s` }}
@@ -2013,14 +3874,18 @@ export function LernenPage() {
                     )}
                   </div>
                   {((view === 'vokabeln' && selectedLernsetId) ||
+                    (view === 'grammatik' && selectedGrammatikTopicId) ||
                     ((view === 'verben' || view === 'substantive' || view === 'adjektive') && selectedTyp) ||
+                    (view === 'ki-lernsets' && (selectedAiDeklinationSetId || selectedKarteikartenSetId)) ||
                     (view === 'sachkunde' && selectedSachkundeTopic)) ? (
                     <>
                       <p className="lernen-modus-spiele-label">Spiele</p>
                       <div className="lernen-grid lernen-grid--options lernen-grid--spiele">
                         {VOKABEL_SPIELE.map((s, i) => {
-                          const isVokabeln = view === 'vokabeln'
+                          const isVokabeln = view === 'vokabeln' || view === 'grammatik'
                           const isSachkunde = view === 'sachkunde'
+                          const isKiDekl = view === 'ki-lernsets' && selectedAiDeklSet
+                          const isKiKarteikarten = view === 'ki-lernsets' && selectedKarteikartenSet
                           const deklWortpaareOk =
                             view === 'verben' && isVerbenTyp(selectedTyp)
                               ? buildVerbenWortpaare(selectedTyp).length >= 4
@@ -2034,20 +3899,26 @@ export function LernenPage() {
                                           : []
                                     return ex.length > 0 && buildDeklinationWortpaare(ex).length >= 4
                                   })()
-                                : false
+                                : isKiDekl && beispiele.length > 0
+                                  ? buildDeklinationWortpaare(beispiele).length >= 4
+                                  : false
                           const sachkundeWortpaareOk =
                             isSachkunde && selectedSachkundeTopic && selectedSachkundeTopic.gamePairs.length >= 2
                           const sachkundeQuizOk =
                             isSachkunde && selectedSachkundeTopic && selectedSachkundeTopic.quiz.length >= 2
-                          const disabled = isVokabeln
-                            ? (s.id === 'wortpaare' && (!selectedLernset || selectedLernset.items.length < 4)) ||
-                              (s.id !== 'wortpaare' && (!selectedLernset || selectedLernset.items.length < 2))
-                            : isSachkunde
-                              ? (s.id === 'wortpaare' && !sachkundeWortpaareOk) ||
-                                (s.id !== 'wortpaare' && !sachkundeQuizOk)
-                              : s.id === 'wortpaare'
-                                ? !deklWortpaareOk
-                                : false
+                          const disabled = isKiKarteikarten
+                            ? true
+                            : isVokabeln
+                              ? (s.id === 'wortpaare' && effectiveVokabelItems.length < 4) ||
+                                (s.id !== 'wortpaare' && effectiveVokabelItems.length < 2)
+                              : isSachkunde
+                                ? (s.id === 'wortpaare' && !sachkundeWortpaareOk) ||
+                                  (s.id !== 'wortpaare' && !sachkundeQuizOk)
+                                : isKiDekl
+                                  ? s.id === 'wortpaare' ? !deklWortpaareOk : beispiele.length < 2
+                                  : s.id === 'wortpaare'
+                                    ? !deklWortpaareOk
+                                    : false
                           return (
                             <button
                               key={s.id}
@@ -2073,22 +3944,45 @@ export function LernenPage() {
                   <h2 className="lernen-anschauen-title">
                     {view === 'sachkunde' && selectedSachkundeTopic
                       ? selectedSachkundeTopic.title
-                      : isVokabeln && selectedLernset
+                      : (view === 'vokabeln' && selectedLernset)
                         ? selectedLernset.name
-                        : typLabel}{' '}
+                        : (view === 'grammatik' && selectedGrammatikTopic)
+                          ? selectedGrammatikTopic.title
+                          : view === 'ki-lernsets' && selectedKarteikartenSet
+                            ? selectedKarteikartenSet.name
+                            : view === 'ki-lernsets' && selectedAiDeklSet
+                              ? selectedAiDeklSet.title
+                              : typLabel}{' '}
                     – Anschauen
                   </h2>
-                  {isVokabeln && selectedLernset ? (
+                  {view === 'ki-lernsets' && selectedKarteikartenSet ? (
+                    <div className="lernen-anschauen-karteikarten">
+                      {selectedKarteikartenSet.items.map((item, i) => (
+                        <div key={i} className="lernen-anschauen-karte">
+                          <div className="lernen-anschauen-karte-frage">
+                            {item.frontImage && <img src={item.frontImage} alt="" className="lernen-anschauen-karte-img" />}
+                            <span className="lernen-anschauen-karte-label">Frage</span>
+                            <p className="lernen-anschauen-karte-text">{item.front}</p>
+                          </div>
+                          <div className="lernen-anschauen-karte-antwort">
+                            {item.backImage && <img src={item.backImage} alt="" className="lernen-anschauen-karte-img" />}
+                            <span className="lernen-anschauen-karte-label">Antwort</span>
+                            <p className="lernen-anschauen-karte-text">{item.back}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : ((view === 'vokabeln' && selectedLernset) || (view === 'grammatik' && selectedGrammatikTopic)) ? (
                     <div className="lernen-vokabeln-tabelle-wrap">
                       <table className="lernen-vokabeln-tabelle">
                         <thead>
                           <tr>
-                            <th>Latein</th>
-                            <th>Deutsch</th>
+                            <th>{view === 'grammatik' ? 'Begriff / Frage' : 'Latein'}</th>
+                            <th>{view === 'grammatik' ? 'Erklärung / Antwort' : 'Deutsch'}</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedLernset.items.map((item, i) => (
+                          {(view === 'grammatik' ? selectedGrammatikTopic!.items : selectedLernset!.items).map((item, i) => (
                             <tr key={i}>
                               <td>{item.vokabel}</td>
                               <td>{item.uebersetzung}</td>
@@ -2244,31 +4138,45 @@ export function LernenPage() {
 
               {showWortpaare && !showWortpaareAuswertung && (
                 <div className="lernen-wortpaare">
+                  {!wortpaareOhneZeit && (
+                    <div className="lernen-wortpaare-uhr" role="timer" aria-live="polite" aria-atomic="true">
+                      {Math.floor(wortpaareElapsedMs / 60000)}:{(Math.floor(wortpaareElapsedMs / 1000) % 60).toString().padStart(2, '0')}.{(Math.floor(wortpaareElapsedMs / 10) % 100).toString().padStart(2, '0')}
+                    </div>
+                  )}
                   <p className="lernen-wortpaare-anleitung">
-                    Finde die passenden Paare: Klicke nacheinander auf die zwei zusammengehörigen Wörter. So schnell wie möglich!
+                    {wortpaareOhneZeit
+                      ? 'Finde die passenden Paare: Klicke nacheinander auf die zwei zusammengehörigen Begriffe.'
+                      : 'Finde die passenden Paare: Klicke nacheinander auf die zwei zusammengehörigen Wörter. So schnell wie möglich!'}
                   </p>
                   <div className="lernen-wortpaare-grid">
-                    {wortpaareCards.map((card, idx) => {
-                      const isSelected = wortpaareFlipped.includes(idx)
-                      const isMatched = wortpaareMatched.includes(card.pairId)
-                      return (
-                        <button
-                          key={card.id}
-                          type="button"
-                          className={`lernen-wortpaare-karte lernen-wortpaare-karte--offen ${isSelected ? 'lernen-wortpaare-karte--ausgewaehlt' : ''} ${isMatched ? 'lernen-wortpaare-karte--getroffen' : ''}`}
-                          onClick={() => handleWortpaareCardClick(idx)}
-                          disabled={wortpaareFlipped.length === 2 && !isSelected}
-                        >
-                          <span className="lernen-wortpaare-karte-text">{card.text}</span>
-                        </button>
-                      )
-                    })}
+                    {wortpaareCards
+                      .map((card, idx) => ({ card, idx }))
+                      .filter(({ card: c }) => !wortpaareMatched.includes(c.pairId))
+                      .map(({ card, idx }) => {
+                        const isSelected = wortpaareFlipped.includes(idx)
+                        return (
+                          <button
+                            key={card.id}
+                            type="button"
+                            className={`lernen-wortpaare-karte lernen-wortpaare-karte--offen ${isSelected ? 'lernen-wortpaare-karte--ausgewaehlt' : ''}`}
+                            onClick={() => handleWortpaareCardClick(idx)}
+                            disabled={wortpaareFlipped.length === 2 && !isSelected}
+                          >
+                            <span className="lernen-wortpaare-karte-text">{card.text}</span>
+                          </button>
+                        )
+                      })}
                   </div>
                 </div>
               )}
 
               {showRennen && !showRennenAuswertung && rennenQuestions[rennenIndex] && (
                 <div className="lernen-rennen">
+                  <div className="lernen-rennen-uhr" role="timer" aria-live="polite" aria-atomic="true">
+                    {Math.floor(rennenElapsedMs / 60000)}:
+                    {(Math.floor(rennenElapsedMs / 1000) % 60).toString().padStart(2, '0')}.
+                    {(Math.floor(rennenElapsedMs / 10) % 100).toString().padStart(2, '0')}
+                  </div>
                   <div className="lernen-rennen-track-wrap">
                     <div className="lernen-rennen-track">
                       <div className="lernen-rennen-track-lane lernen-rennen-track-lane--user">
@@ -2276,8 +4184,23 @@ export function LernenPage() {
                           className="lernen-rennen-auto lernen-rennen-auto--user"
                           style={{ left: `${rennenCarProgress}%` }}
                         >
-                          <svg viewBox="0 0 48 24" className="lernen-rennen-auto-svg" aria-hidden>
-                            <path fill="currentColor" d="M8 14h4v4H8v-4zm20 0h4v4h-4v-4zM10 10h28v6H10v-6zM6 12v2H2v-2h4zm40 0v2h-4v-2h4zM8 8l2-4h20l2 4H8z" />
+                          <svg viewBox="0 0 80 32" className="lernen-rennen-auto-svg" aria-hidden>
+                            <defs>
+                              <linearGradient id="carUserBody" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="currentColor" stopOpacity="0.9" />
+                                <stop offset="100%" stopColor="currentColor" stopOpacity="0.7" />
+                              </linearGradient>
+                            </defs>
+                            <rect x="6" y="14" width="68" height="10" rx="4" fill="url(#carUserBody)" />
+                            <rect x="18" y="8" width="32" height="9" rx="3" fill="currentColor" />
+                            <rect x="20" y="10" width="10" height="6" rx="2" fill="#e2e8f0" />
+                            <rect x="34" y="10" width="10" height="6" rx="2" fill="#e2e8f0" />
+                            <circle cx="22" cy="26" r="4" fill="#1a202c" />
+                            <circle cx="58" cy="26" r="4" fill="#1a202c" />
+                            <circle cx="22" cy="26" r="2" fill="#cbd5f5" />
+                            <circle cx="58" cy="26" r="2" fill="#cbd5f5" />
+                            <rect x="10" y="16" width="6" height="3" rx="1.5" fill="#fbbf24" />
+                            <rect x="64" y="16" width="6" height="3" rx="1.5" fill="#60a5fa" />
                           </svg>
                           <span className="lernen-rennen-auto-label">Du</span>
                         </div>
@@ -2288,8 +4211,23 @@ export function LernenPage() {
                           className="lernen-rennen-auto lernen-rennen-auto--gegner"
                           style={{ left: `${rennenOpponentProgress}%` }}
                         >
-                          <svg viewBox="0 0 48 24" className="lernen-rennen-auto-svg" aria-hidden>
-                            <path fill="currentColor" d="M8 14h4v4H8v-4zm20 0h4v4h-4v-4zM10 10h28v6H10v-6zM6 12v2H2v-2h4zm40 0v2h-4v-2h4zM8 8l2-4h20l2 4H8z" />
+                          <svg viewBox="0 0 80 32" className="lernen-rennen-auto-svg" aria-hidden>
+                            <defs>
+                              <linearGradient id="carOpponentBody" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="currentColor" stopOpacity="0.9" />
+                                <stop offset="100%" stopColor="currentColor" stopOpacity="0.7" />
+                              </linearGradient>
+                            </defs>
+                            <rect x="6" y="14" width="68" height="10" rx="4" fill="url(#carOpponentBody)" />
+                            <rect x="18" y="8" width="32" height="9" rx="3" fill="currentColor" />
+                            <rect x="20" y="10" width="10" height="6" rx="2" fill="#e2e8f0" />
+                            <rect x="34" y="10" width="10" height="6" rx="2" fill="#e2e8f0" />
+                            <circle cx="22" cy="26" r="4" fill="#020617" />
+                            <circle cx="58" cy="26" r="4" fill="#020617" />
+                            <circle cx="22" cy="26" r="2" fill="#64748b" />
+                            <circle cx="58" cy="26" r="2" fill="#64748b" />
+                            <rect x="10" y="16" width="6" height="3" rx="1.5" fill="#facc15" />
+                            <rect x="64" y="16" width="6" height="3" rx="1.5" fill="#38bdf8" />
                           </svg>
                           <span className="lernen-rennen-auto-label">Gegner</span>
                         </div>
@@ -2412,13 +4350,35 @@ export function LernenPage() {
                   >
                     <div className="lernen-karte-inner">
                       <div className="lernen-karte-vorne">
-                        <span className="lernen-karte-label">{view === 'verben' ? 'Aufgabe' : 'Latein'}</span>
+                        <span className="lernen-karte-label">
+                          {view === 'verben' || view === 'substantive' || view === 'adjektive'
+                            ? 'Aufgabe'
+                            : view === 'ki-lernsets' && selectedKarteikartenSetId
+                              ? 'Vorderseite'
+                              : 'Latein'}
+                        </span>
                         <p className="lernen-karte-text">{karteikartenItems[karteikartenIndex].front}</p>
                         <span className="lernen-karte-hinweis">Tippen zum Umdrehen</span>
+                        {karteikartenItems[karteikartenIndex].frontImage && (
+                          <div className="lernen-karte-img-wrap">
+                            <img src={karteikartenItems[karteikartenIndex].frontImage} alt="" className="lernen-karte-img" />
+                          </div>
+                        )}
                       </div>
                       <div className="lernen-karte-hinten">
-                        <span className="lernen-karte-label">{view === 'verben' ? 'Lösung' : 'Deutsch'}</span>
+                        <span className="lernen-karte-label">
+                          {view === 'verben' || view === 'substantive' || view === 'adjektive'
+                            ? 'Lösung'
+                            : view === 'ki-lernsets' && selectedKarteikartenSetId
+                              ? 'Rückseite'
+                              : 'Deutsch'}
+                        </span>
                         <p className="lernen-karte-text">{karteikartenItems[karteikartenIndex].back}</p>
+                        {karteikartenItems[karteikartenIndex].backImage && (
+                          <div className="lernen-karte-img-wrap">
+                            <img src={karteikartenItems[karteikartenIndex].backImage} alt="" className="lernen-karte-img" />
+                          </div>
+                        )}
                         <div className="lernen-karte-aktionen">
                           <button
                             type="button"
@@ -2441,10 +4401,14 @@ export function LernenPage() {
                 </div>
               )}
 
-              {showVokabelnQuiz && !showVokabelnQuizAuswertung && vokabelQuizQuestions[vokabelQuizIndex] && vokabelQuizMode === 'lernen' && (
+              {showVokabelnQuiz && !showVokabelnQuizAuswertung && !vokShowZwischenauswertung && vokabelQuizQuestions[vokabelQuizIndex] && vokabelQuizMode === 'lernen' && (
                 <div className="lernen-quiz">
                   <p className="lernen-quiz-frage-text">
-                    Wie lautet die Übersetzung von <strong>{vokabelQuizQuestions[vokabelQuizIndex].vokabel}</strong>?
+                    {view === 'ki-lernsets' && selectedKarteikartenSetId ? (
+                      <>Was steht auf der Rückseite? <strong>{vokabelQuizQuestions[vokabelQuizIndex].vokabel}</strong></>
+                    ) : (
+                      <>Wie lautet die Übersetzung von <strong>{vokabelQuizQuestions[vokabelQuizIndex].vokabel}</strong>?</>
+                    )}
                   </p>
                   <div className="lernen-quiz-optionen">
                     {vokabelQuizQuestions[vokabelQuizIndex].options.map((opt, i) => (
@@ -2468,10 +4432,14 @@ export function LernenPage() {
                 </div>
               )}
 
-              {showVokabelnQuiz && !showVokabelnQuizAuswertung && vokabelQuizQuestions[vokabelQuizIndex] && vokabelQuizMode === 'test' && (
+              {showVokabelnQuiz && !showVokabelnQuizAuswertung && !vokShowZwischenauswertung && vokabelQuizQuestions[vokabelQuizIndex] && vokabelQuizMode === 'test' && (
                 <div className="lernen-quiz lernen-quiz--test">
                   <p className="lernen-quiz-frage-text">
-                    Wie lautet die Übersetzung von <strong>{vokabelQuizQuestions[vokabelQuizIndex].vokabel}</strong>?
+                    {view === 'ki-lernsets' && selectedKarteikartenSetId ? (
+                      <>Was steht auf der Rückseite? <strong>{vokabelQuizQuestions[vokabelQuizIndex].vokabel}</strong></>
+                    ) : (
+                      <>Wie lautet die Übersetzung von <strong>{vokabelQuizQuestions[vokabelQuizIndex].vokabel}</strong>?</>
+                    )}
                   </p>
                   <div className="lernen-quiz-eingabe">
                     <input
@@ -2515,7 +4483,39 @@ export function LernenPage() {
                 </div>
               )}
 
-              {showQuiz && !showAuswertung && currentFrage && quizMode === 'lernen' && (
+              {dekShowZwischenauswertung && (
+                <div className="lernen-zwischenauswertung" role="status" aria-live="polite">
+                  <p className="lernen-zwischenauswertung-title">Station {dekStation} geschafft!</p>
+                  <p className="lernen-zwischenauswertung-stats">
+                    <span className="lernen-zwischenauswertung-richtig">{dekZwischenCorrect} richtig</span>
+                    <span className="lernen-zwischenauswertung-falsch">{dekZwischenWrong} falsch</span>
+                  </p>
+                  <p className="lernen-zwischenauswertung-hint">
+                    {dekStation < 5 ? 'Weiter zur nächsten Station.' : 'Lektion abgeschlossen!'}
+                  </p>
+                  <button type="button" className="lernen-zwischenauswertung-btn" onClick={handleDekZwischenWeiter}>
+                    {dekStation === 5 && dekZwischenFromPhase === 'correctTest' ? 'Zur Auswertung' : 'Weiter'}
+                  </button>
+                </div>
+              )}
+
+              {vokShowZwischenauswertung && (
+                <div className="lernen-zwischenauswertung" role="status" aria-live="polite">
+                  <p className="lernen-zwischenauswertung-title">Station {vokStation} geschafft!</p>
+                  <p className="lernen-zwischenauswertung-stats">
+                    <span className="lernen-zwischenauswertung-richtig">{vokZwischenCorrect} richtig</span>
+                    <span className="lernen-zwischenauswertung-falsch">{vokZwischenWrong} falsch</span>
+                  </p>
+                  <p className="lernen-zwischenauswertung-hint">
+                    {vokStation < 5 ? 'Weiter zur nächsten Station.' : 'Lektion abgeschlossen!'}
+                  </p>
+                  <button type="button" className="lernen-zwischenauswertung-btn" onClick={handleVokZwischenWeiter}>
+                    {vokStation === 5 && vokZwischenFromPhase === 'correctTest' ? 'Zur Auswertung' : 'Weiter'}
+                  </button>
+                </div>
+              )}
+
+              {showQuiz && !showAuswertung && !dekShowZwischenauswertung && currentFrage && quizMode === 'lernen' && (
                 <div className="lernen-quiz">
                   <p className="lernen-quiz-frage-text">
                     Wie lautet <strong>{currentFrage.fall}</strong> {currentFrage.zahlLabel} von <strong>{currentFrage.wortName}</strong>?
@@ -2542,7 +4542,7 @@ export function LernenPage() {
                 </div>
               )}
 
-              {showQuiz && !showAuswertung && currentFrage && quizMode === 'test' && (
+              {showQuiz && !showAuswertung && !dekShowZwischenauswertung && currentFrage && quizMode === 'test' && (
                 <div className="lernen-quiz lernen-quiz--test">
                   <p className="lernen-quiz-frage-text">
                     Wie lautet <strong>{currentFrage.fall}</strong> {currentFrage.zahlLabel} von <strong>{currentFrage.wortName}</strong>?
@@ -2650,10 +4650,43 @@ export function LernenPage() {
                   </div>
                   <p className="lernen-auswertung-message">{auswertungMessage}</p>
                   <p className="lernen-auswertung-label">richtig</p>
-                  {showWortpaareAuswertung && wortpaareEndTime != null && (
-                    <p className="lernen-auswertung-zeit">
-                      Zeit: {Math.round((wortpaareEndTime - wortpaareStartTime) / 1000)} Sekunden
+                  {showTestGrade && testGrade != null && (
+                    <p className="lernen-auswertung-note" role="status">
+                      Du hättest eine <strong>{testGrade}</strong>
                     </p>
+                  )}
+                  {showWortpaareAuswertung && wortpaareEndTime != null && (
+                    <div className="lernen-wortpaare-auswertung" role="status">
+                      {!wortpaareOhneZeit && (
+                        <>
+                          <div className="lernen-wortpaare-auswertung-zeit">
+                            <span className="lernen-wortpaare-auswertung-label">Deine Zeit</span>
+                            <span className="lernen-wortpaare-auswertung-wert">
+                              {((wortpaareEndTime - wortpaareStartTime) / 1000).toFixed(2).replace('.', ',')} s
+                            </span>
+                          </div>
+                          {wortpaareLessonKey && (
+                            <div className="lernen-wortpaare-auswertung-bestzeit">
+                              {wortpaareIsNewBest ? (
+                                <p className="lernen-wortpaare-auswertung-neue-bestzeit">
+                                  Neue Bestzeit! {((wortpaareEndTime - wortpaareStartTime) / 1000).toFixed(2).replace('.', ',')} s
+                                </p>
+                              ) : getWortpaareBestzeit(wortpaareLessonKey) != null ? (
+                                <>
+                                  <span className="lernen-wortpaare-auswertung-label">Bestzeit</span>
+                                  <span className="lernen-wortpaare-auswertung-wert">
+                                    {(getWortpaareBestzeit(wortpaareLessonKey)! / 1000).toFixed(2).replace('.', ',')} s
+                                  </span>
+                                </>
+                              ) : null}
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {wortpaareOhneZeit && (
+                        <p className="lernen-wortpaare-auswertung-quiz">Alle Paare gefunden – gut gemacht!</p>
+                      )}
+                    </div>
                   )}
                   {showRennenAuswertung && (
                     <p className="lernen-auswertung-platz">
@@ -2723,7 +4756,7 @@ export function LernenPage() {
                           <span>Falsche weiter üben</span>
                         </button>
                       </>
-                    ) : showAuswertung ? (
+                    ) : showAuswertung && !showTestGrade ? (
                       <>
                         <button type="button" className="lernen-auswertung-btn lernen-auswertung-btn--1" onClick={handleNochEinmal}>
                           <RefreshIcon />
@@ -2734,7 +4767,12 @@ export function LernenPage() {
                           <span>Falsche weiter üben</span>
                         </button>
                       </>
-                    ) : showVokabelnQuizAuswertung ? (
+                    ) : showAuswertung && showTestGrade ? (
+                      <button type="button" className="lernen-auswertung-btn lernen-auswertung-btn--1" onClick={handleNochEinmal}>
+                        <RefreshIcon />
+                        <span>Noch einmal</span>
+                      </button>
+                    ) : showVokabelnQuizAuswertung && !showTestGrade ? (
                       <>
                         <button type="button" className="lernen-auswertung-btn lernen-auswertung-btn--1" onClick={handleVokabelNochEinmal}>
                           <RefreshIcon />
@@ -2745,6 +4783,11 @@ export function LernenPage() {
                           <span>Falsche weiter üben</span>
                         </button>
                       </>
+                    ) : showVokabelnQuizAuswertung && showTestGrade ? (
+                      <button type="button" className="lernen-auswertung-btn lernen-auswertung-btn--1" onClick={handleVokabelNochEinmal}>
+                        <RefreshIcon />
+                        <span>Noch einmal</span>
+                      </button>
                     ) : showWortpaareAuswertung ? (
                       <button type="button" className="lernen-auswertung-btn lernen-auswertung-btn--1" onClick={handleWortpaareNochEinmal}>
                         <RefreshIcon />
@@ -2788,15 +4831,18 @@ export function LernenPage() {
                     {shareResultFeedback === 'ok' && <span className="lernen-auswertung-share-feedback">Kopiert!</span>}
                   </div>
                   {newAchievementIds.length > 0 && (
-                    <div className="lernen-auswertung-achievement-toast" role="status">
-                      {getAchievements()
-                        .filter((a) => newAchievementIds.includes(a.id))
-                        .map((a) => (
-                          <div key={a.id} className="lernen-achievement-toast-item">
-                            <span className="lernen-achievement-toast-icon">{a.icon}</span>
-                            <span className="lernen-achievement-toast-title">Neuer Erfolg: {a.title}</span>
-                          </div>
-                        ))}
+                    <div className="lernen-auswertung-achievement-block" role="status" aria-live="polite">
+                      <p className="lernen-auswertung-achievement-heading">Neue Erfolge</p>
+                      <div className="lernen-auswertung-achievement-toast">
+                        {getAchievements()
+                          .filter((a) => newAchievementIds.includes(a.id))
+                          .map((a) => (
+                            <div key={a.id} className="lernen-achievement-toast-item">
+                              <span className="lernen-achievement-toast-icon">{a.icon}</span>
+                              <span className="lernen-achievement-toast-title">{a.title}</span>
+                            </div>
+                          ))}
+                      </div>
                     </div>
                   )}
                   {streakPopup !== null && (
@@ -2805,6 +4851,9 @@ export function LernenPage() {
                       role="status"
                       aria-live="polite"
                     >
+                      {streakPopup.updated && (
+                        <p className="streak-popup-tagesziel-headline">Tagesziel erreicht!</p>
+                      )}
                       <div className="streak-popup-flame-wrap">
                         <FlameIcon className="streak-popup-flame" />
                       </div>
@@ -2815,7 +4864,7 @@ export function LernenPage() {
                           : `${streakPopup.streak} Tage in Folge`}
                       </p>
                       {streakPopup.updated && (
-                        <p className="streak-popup-badge">Tagesziel erreicht</p>
+                        <p className="streak-popup-badge">Streak gesichert</p>
                       )}
                     </div>
                   )}

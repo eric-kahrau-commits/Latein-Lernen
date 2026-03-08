@@ -179,3 +179,157 @@ export function getLastUsedLernsetIds(lernsetIds: Set<string>, limit: number = M
   }
   return result
 }
+
+const WOCHENTAG_NAMES = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+
+/** Lernminuten pro Wochentag (0 = Mo, 6 = So) */
+export function getMinutesByWeekday(): { weekday: number; weekdayName: string; minutes: number }[] {
+  const byDay: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }
+  load().sessions.forEach((s) => {
+    const d = new Date(s.date + 'T12:00:00')
+    const w = (d.getDay() + 6) % 7
+    byDay[w] = (byDay[w] ?? 0) + s.minutes
+  })
+  return WOCHENTAG_NAMES.map((weekdayName, i) => ({
+    weekday: i,
+    weekdayName,
+    minutes: byDay[i] ?? 0,
+  }))
+}
+
+/** Anzahl Sessions (Durchläufe) pro Lektion */
+export function getSessionCountByLesson(): { lessonId: string; lessonName: string; count: number }[] {
+  const byLesson: Record<string, { lessonName: string; count: number }> = {}
+  load().sessions.forEach((s) => {
+    if (!byLesson[s.lessonId]) {
+      byLesson[s.lessonId] = { lessonName: s.lessonName, count: 0 }
+    }
+    byLesson[s.lessonId].count += 1
+    byLesson[s.lessonId].lessonName = s.lessonName
+  })
+  return Object.entries(byLesson)
+    .map(([lessonId, v]) => ({ lessonId, lessonName: v.lessonName, count: v.count }))
+    .sort((a, b) => b.count - a.count)
+}
+
+/** Aktivität der letzten 30 Tage: Datum, Minuten, ob aktiv */
+export function getActivityLast30Days(): { date: string; minutes: number; hasActivity: boolean }[] {
+  const result: { date: string; minutes: number; hasActivity: boolean }[] = []
+  const byDay: Record<string, number> = {}
+  load().sessions.forEach((s) => {
+    byDay[s.date] = (byDay[s.date] ?? 0) + s.minutes
+  })
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const date = d.toISOString().slice(0, 10)
+    const minutes = byDay[date] ?? 0
+    result.push({ date, minutes, hasActivity: minutes > 0 })
+  }
+  return result
+}
+
+function getLessonName(lessonId: string): string {
+  const s = load().sessions.find((x) => x.lessonId === lessonId)
+  if (s) return s.lessonName
+  const opt = DEKLINATION_LESSON_OPTIONS.find((o) => o.id === lessonId)
+  return opt ? opt.name : lessonId
+}
+
+/** Durchschnittliche Trefferquote pro Lektion (über alle Modi) */
+export function getAveragePercentByLesson(): { lessonId: string; lessonName: string; avgPercent: number; attemptCount: number }[] {
+  const data = load()
+  const byLesson: Record<string, number[]> = {}
+  Object.entries(data.attempts).forEach(([key, list]) => {
+    const lessonId = key.split(':')[0]
+    if (!byLesson[lessonId]) byLesson[lessonId] = []
+    list.forEach((a) => byLesson[lessonId].push(a.percent))
+  })
+  return Object.entries(byLesson)
+    .map(([lessonId, percents]) => {
+      const sum = percents.reduce((a, b) => a + b, 0)
+      return {
+        lessonId,
+        lessonName: getLessonName(lessonId),
+        avgPercent: percents.length ? Math.round(sum / percents.length) : 0,
+        attemptCount: percents.length,
+      }
+    })
+    .filter((x) => x.attemptCount > 0)
+    .sort((a, b) => b.avgPercent - a.avgPercent)
+}
+
+/** Erste vs. beste Trefferquote pro Lektion */
+export function getBestVsFirstPercentByLesson(): { lessonId: string; lessonName: string; firstPercent: number; bestPercent: number }[] {
+  const data = load()
+  const byLesson: Record<string, { first: number; best: number }> = {}
+  Object.entries(data.attempts).forEach(([key, list]) => {
+    const lessonId = key.split(':')[0]
+    if (list.length === 0) return
+    const first = list[0].percent
+    const best = Math.max(...list.map((a) => a.percent))
+    if (!byLesson[lessonId]) {
+      byLesson[lessonId] = { first: first, best }
+    } else {
+      byLesson[lessonId].first = Math.min(byLesson[lessonId].first, first)
+      byLesson[lessonId].best = Math.max(byLesson[lessonId].best, best)
+    }
+  })
+  return Object.entries(byLesson)
+    .map(([lessonId, v]) => ({
+      lessonId,
+      lessonName: getLessonName(lessonId),
+      firstPercent: v.first,
+      bestPercent: v.best,
+    }))
+    .sort((a, b) => b.bestPercent - b.firstPercent - (a.bestPercent - a.firstPercent))
+}
+
+/** Anzahl Durchläufe (Attempts) pro Lernmodus */
+export function getAttemptCountByMode(): { mode: StatistikMode; modeLabel: string; count: number }[] {
+  const MODE_LABELS: Record<StatistikMode, string> = {
+    anschauen: 'Anschauen',
+    karteikarten: 'Karteikarten',
+    lernen: 'Lernen',
+    test: 'Test',
+  }
+  const data = load()
+  const byMode: Record<StatistikMode, number> = { anschauen: 0, karteikarten: 0, lernen: 0, test: 0 }
+  Object.entries(data.attempts).forEach(([key, list]) => {
+    const mode = key.split(':')[1] as StatistikMode
+    if (byMode[mode] !== undefined) byMode[mode] += list.length
+  })
+  return (['anschauen', 'karteikarten', 'lernen', 'test'] as StatistikMode[]).map((mode) => ({
+    mode,
+    modeLabel: MODE_LABELS[mode],
+    count: byMode[mode] ?? 0,
+  }))
+}
+
+/** Lernminuten pro Woche (letzte N Wochen) */
+export function getMinutesByWeek(lastWeeks: number = 8): { weekLabel: string; yearWeek: string; minutes: number }[] {
+  const byWeek: Record<string, number> = {}
+  const sessions = load().sessions
+  sessions.forEach((s) => {
+    const d = new Date(s.date + 'T12:00:00')
+    const start = new Date(d)
+    start.setDate(start.getDate() - start.getDay() + 1)
+    const key = start.toISOString().slice(0, 10)
+    byWeek[key] = (byWeek[key] ?? 0) + s.minutes
+  })
+  const result: { weekLabel: string; yearWeek: string; minutes: number }[] = []
+  for (let i = lastWeeks - 1; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - 7 * i)
+    d.setDate(d.getDate() - d.getDay() + 1)
+    const yearWeek = d.toISOString().slice(0, 10)
+    const end = new Date(d)
+    end.setDate(end.getDate() + 6)
+    result.push({
+      weekLabel: `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, '0')} – ${end.getDate()}.${String(end.getMonth() + 1).padStart(2, '0')}`,
+      yearWeek,
+      minutes: byWeek[yearWeek] ?? 0,
+    })
+  }
+  return result
+}

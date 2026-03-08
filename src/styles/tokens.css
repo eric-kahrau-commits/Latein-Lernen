@@ -1,0 +1,69 @@
+/* ========================================
+   LAYOUT & SPACING TOKENS (Phase 2)
+   Einheitliches Raster für Abstände und Breiten
+   ======================================== */
+
+/* ===== BREAKPOINTS (Phase 4 – einheitlich in der App) =====
+   Mobile:  0–639px   (einspaltig, volle Breite, Touch mind. 44px)
+   Tablet:  640–1023px (min-width: 640px)
+   Desktop: 1024px+   (min-width: 1024px, Sidebar sichtbar)
+   Large:   1280px+   (min-width: 1280px, optional)
+   Nutze einheitlich: @media (min-width: 640px) und @media (min-width: 1024px)
+*/
+
+:root {
+  /* Spacing – konsistent über alle Seiten */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 40px;
+
+  /* Content-Breiten – Lesbarkeit & Grids */
+  --content-max-width: 720px;
+  --content-wide: 960px;
+
+  /* Border-Radius – Buttons, Karten, Modals */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Typografie (Phase 3) */
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;  /* 14px */
+  --font-size-base: 1rem;    /* 16px */
+  --font-size-lg: 1.125rem;  /* 18px */
+  --font-size-xl: 1.25rem;   /* 20px */
+  --font-size-2xl: 1.5rem;   /* 24px */
+  --font-size-display: 1.75rem; /* 28px */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+
+  /* Touch-Ziele (Phase 5 – Barrierefreiheit) */
+  --touch-target: 44px;
+
+  /* Main-Bereich: horizontales Padding (Mobile zuerst) */
+  --main-padding-x: 12px;
+  --main-padding-y: var(--space-xl);
+}
+
+@media (min-width: 640px) {
+  :root {
+    --main-padding-x: 20px;
+    --main-padding-y: var(--space-2xl);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --main-padding-x: 24px;
+    --main-padding-y: var(--space-2xl);
+  }
+}

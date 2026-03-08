@@ -20,15 +20,28 @@ export type StoredLernenView =
   | 'substantive'
   | 'adjektive'
   | 'vokabeln'
+  | 'grammatik'
   | 'sachkunde'
 
-export type StoredLernenStep = 'chooseMode' | null
+export type StoredLernenStep =
+  | null
+  | 'chooseMode'
+  | 'anschauen'
+  | 'lernen'
+  | 'test'
+  | 'karteikarten'
+  | 'spiel'
+  | 'wortpaare'
+  | 'glücksrad'
+  | 'rennen'
 
 export interface StoredLernenState {
   view: StoredLernenView
   breadcrumb: string[]
   selectedTyp: string | null
   selectedLernsetId: string | null
+  selectedGrammatikTopicId: string | null
+  selectedSachkundeTopicId: string | null
   step: StoredLernenStep
 }
 
@@ -37,8 +50,23 @@ const DEFAULT_LERNEN: StoredLernenState = {
   breadcrumb: [],
   selectedTyp: null,
   selectedLernsetId: null,
+  selectedGrammatikTopicId: null,
+  selectedSachkundeTopicId: null,
   step: null,
 }
+
+const VALID_STEPS: StoredLernenStep[] = [
+  null,
+  'chooseMode',
+  'anschauen',
+  'lernen',
+  'test',
+  'karteikarten',
+  'spiel',
+  'wortpaare',
+  'glücksrad',
+  'rennen',
+]
 
 const VALID_VIEWS: StoredLernenView[] = [
   'themen',
@@ -47,6 +75,7 @@ const VALID_VIEWS: StoredLernenView[] = [
   'substantive',
   'adjektive',
   'vokabeln',
+  'grammatik',
   'sachkunde',
 ]
 
@@ -73,9 +102,23 @@ export function loadLernenState(): StoredLernenState {
       (typeof p.selectedLernsetId === 'string' && p.selectedLernsetId)
         ? (p.selectedLernsetId as string | null)
         : null
+    const selectedGrammatikTopicId =
+      p.selectedGrammatikTopicId === null ||
+      (typeof p.selectedGrammatikTopicId === 'string' && p.selectedGrammatikTopicId)
+        ? (p.selectedGrammatikTopicId as string | null)
+        : null
+    const selectedSachkundeTopicId =
+      p.selectedSachkundeTopicId === null ||
+      (typeof p.selectedSachkundeTopicId === 'string' && p.selectedSachkundeTopicId)
+        ? (p.selectedSachkundeTopicId as string | null)
+        : null
     const step =
-      p.step === 'chooseMode' ? ('chooseMode' as const) : DEFAULT_LERNEN.step
-    return { view, breadcrumb, selectedTyp, selectedLernsetId, step }
+      typeof p.step === 'string' && (VALID_STEPS as unknown[]).includes(p.step)
+        ? (p.step as StoredLernenStep)
+        : p.step === null
+          ? null
+          : DEFAULT_LERNEN.step
+    return { view, breadcrumb, selectedTyp, selectedLernsetId, selectedGrammatikTopicId, selectedSachkundeTopicId, step }
   } catch {
     return DEFAULT_LERNEN
   }
@@ -87,6 +130,22 @@ export function saveLernenState(state: StoredLernenState): void {
   } catch {
     // ignore
   }
+}
+
+const ACTIVE_STEPS: StoredLernenStep[] = [
+  'anschauen',
+  'lernen',
+  'test',
+  'karteikarten',
+  'spiel',
+  'wortpaare',
+  'glücksrad',
+  'rennen',
+]
+
+/** true wenn der gespeicherte Step ein aktiver Lern-/Spielmodus war (nicht nur Auswahl). */
+export function isStoredLernenStepActive(step: StoredLernenStep): boolean {
+  return step != null && ACTIVE_STEPS.includes(step)
 }
 
 // --- Statistiken UI ---

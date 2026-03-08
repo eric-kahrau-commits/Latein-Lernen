@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useState } from 'react'
 
 const STORAGE_KEY = 'latinum-user-name'
+const MAX_USER_NAME_LENGTH = 80
 
 type ProfileContextValue = {
   userName: string
@@ -11,7 +12,8 @@ const ProfileContext = createContext<ProfileContextValue | null>(null)
 
 function readStoredName(): string {
   try {
-    return localStorage.getItem(STORAGE_KEY) ?? ''
+    const raw = localStorage.getItem(STORAGE_KEY) ?? ''
+    return typeof raw === 'string' ? raw.trim().slice(0, MAX_USER_NAME_LENGTH) : ''
   } catch {
     return ''
   }
@@ -21,7 +23,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [userName, setUserNameState] = useState(readStoredName)
 
   const setUserName = useCallback((name: string) => {
-    const trimmed = name.trim()
+    const trimmed = (typeof name === 'string' ? name : '').trim().slice(0, MAX_USER_NAME_LENGTH)
     setUserNameState(trimmed)
     try {
       if (trimmed) {

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { TopBar } from './TopBar'
 import { Sidebar } from './Sidebar'
+import { OfflineBanner } from './OfflineBanner'
 import './Layout.css'
 
 type LayoutProps = {
@@ -15,9 +16,12 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="layout">
-      <TopBar menuOpen={menuOpen} onMenuToggle={toggleMenu} />
+      <TopBar menuOpen={menuOpen} onMenuToggle={toggleMenu} onCloseMenu={closeMenu} />
+      <OfflineBanner />
       <Sidebar open={menuOpen} onClose={closeMenu} />
-      <main className="main">{children}</main>
+      <main className="main">
+        <div className="main-inner">{children}</div>
+      </main>
     </div>
   )
 }

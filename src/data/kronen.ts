@@ -1,10 +1,12 @@
 /**
  * Lobeskronen – Belohnungswährung mit Tageslimit.
- * Max. 12 Kronen pro Tag, pro Lektion 1–3 Kronen (je nach Ergebnis).
+ * Max. 20 Kronen pro Tag; in 2 guten Lektionen (z. B. 80 % und 100 %) erreichbar.
  */
 
 const STORAGE_KEY = 'latinum-kronen'
-const DAILY_CAP = 12
+const BONUS_USED_KEY = 'latinum-kronen-daily-bonus-date'
+const DAILY_CAP = 20
+const DAILY_BONUS_CROWNS = 2
 
 interface StoredKronen {
   balance: number
@@ -76,8 +78,23 @@ export interface KronenAwardResult {
 }
 
 /**
- * Nach absolvierter Lektion aufrufen. Vergibt 1–3 Kronen (je nach Prozent),
+ * Kronen pro Lektion (0–10) nach Ergebnis. So erreichbar: max. 20/Tag in ca. 2 Lektionen.
+ * < 50 %: 0 | 50–59: 3 | 60–69: 4 | 70–79: 5 | 80–89: 7 | 90–99: 9 | 100: 10
+ */
+function crownsForPercent(percent: number): number {
+  if (percent < 50) return 0
+  if (percent < 60) return 3
+  if (percent < 70) return 4
+  if (percent < 80) return 5
+  if (percent < 90) return 7
+  if (percent < 100) return 9
+  return 10
+}
+
+/**
+ * Nach absolvierter Lektion aufrufen. Vergibt 0–10 Kronen (je nach Prozent),
  * maximal DAILY_CAP pro Tag. Einmal pro Abschluss (nicht pro Frage).
+ * Zwei gute Lektionen (z. B. 80 % + 100 %) reichen für das Tageslimit.
  */
 export function awardKronenForLesson(percent: number): KronenAwardResult {
   const today = getToday()
@@ -92,10 +109,7 @@ export function awardKronenForLesson(percent: number): KronenAwardResult {
     return { awarded: 0, newBalance: data.balance, earnedToday: data.earnedToday, dailyCap: DAILY_CAP }
   }
 
-  let crowns = 1
-  if (percent >= 80) crowns += 1
-  if (percent >= 100) crowns += 1
-  crowns = Math.min(crowns, remaining)
+  const crowns = Math.min(crownsForPercent(percent), remaining)
 
   data.earnedToday += crowns
   data.balance += crowns
@@ -106,4 +120,28 @@ export function awardKronenForLesson(percent: number): KronenAwardResult {
     earnedToday: data.earnedToday,
     dailyCap: DAILY_CAP,
   }
+}
+
+/**
+ * Täglicher Kronen-Bonus (Shop-Item „Täglicher Kronen-Bonus“).
+ * Einmal pro Tag: +2 Kronen, wenn der Aufrufer gerade Kronen verdient hat.
+ * Gibt die zusätzlich vergebenen Kronen zurück (0 oder 2).
+ */
+export function addDailyBonusIfEligible(): number {
+  const today = getToday()
+  try {
+    const used = localStorage.getItem(BONUS_USED_KEY)
+    if (used === today) return 0
+  } catch {
+    return 0
+  }
+  const data = load()
+  data.balance += DAILY_BONUS_CROWNS
+  save(data)
+  try {
+    localStorage.setItem(BONUS_USED_KEY, today)
+  } catch {
+    // ignore
+  }
+  return DAILY_BONUS_CROWNS
 }
