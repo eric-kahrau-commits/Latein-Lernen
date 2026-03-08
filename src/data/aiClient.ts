@@ -41,9 +41,19 @@ export type LernsetAssistantTurn = {
 }
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
+const OPENAI_PROXY_URL = '/api/openai-proxy'
 const DEFAULT_MODEL = 'gpt-5o'
 const MODEL: string = (import.meta.env.VITE_OPENAI_MODEL as string | undefined) || DEFAULT_MODEL
 const REQUEST_TIMEOUT_MS = 60_000
+
+/** In Production: Proxy (Key nur auf Server). In Dev: direkter Aufruf mit Key aus .env. */
+function getApiConfig(): { useProxy: boolean; apiKey: string | undefined } {
+  if (import.meta.env.DEV) {
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
+    return { useProxy: false, apiKey }
+  }
+  return { useProxy: true, apiKey: undefined }
+}
 
 /** Nutzerfreundliche Fehlermeldungen für KI/Netzwerk */
 export const NETWORK_ERROR_MESSAGE =
@@ -61,22 +71,33 @@ export function isOnline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine
 }
 
-async function openAIFetch(body: object, apiKey: string): Promise<Response> {
+async function openAIFetch(body: object, apiKeyOrConfig: string | { useProxy: boolean; apiKey: string | undefined }): Promise<Response> {
   if (!isOnline()) {
     throw new Error(OFFLINE_MESSAGE)
   }
+  const config = typeof apiKeyOrConfig === 'string'
+    ? { useProxy: false, apiKey: apiKeyOrConfig }
+    : apiKeyOrConfig
+
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
-    const res = await fetch(OPENAI_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    })
+    const res = config.useProxy
+      ? await fetch(OPENAI_PROXY_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        })
+      : await fetch(OPENAI_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${config.apiKey}`,
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        })
     clearTimeout(timeoutId)
     if (!res.ok) {
       const status = res.status
@@ -139,9 +160,9 @@ export async function generateDeklinationWithAI(params: {
   typ: 'a' | 'o' | 'u' | 'konsonantisch'
   deutschHint?: string
 }): Promise<AiDeklinationResponse> {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error('Kein OpenAI API Key gefunden. Bitte VITE_OPENAI_API_KEY in der .env Datei setzen.')
+  const config = getApiConfig()
+  if (!config.useProxy && !config.apiKey) {
+    throw new Error('Kein OpenAI API Key gefunden. Bitte VITE_OPENAI_API_KEY in der .env Datei setzen (lokal).')
   }
 
   const { lemma, typ, deutschHint } = params
@@ -175,7 +196,7 @@ export async function generateDeklinationWithAI(params: {
       ],
       temperature: 0.2,
     },
-    apiKey,
+    config,
   )
 
   const data = await res.json()
@@ -215,9 +236,9 @@ export async function generateVokabelSetWithAI(params: {
   description?: string
   count: number
 }): Promise<AiVokabelSetResponse> {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error('Kein OpenAI API Key gefunden. Bitte VITE_OPENAI_API_KEY in der .env Datei setzen.')
+  const config = getApiConfig()
+  if (!config.useProxy && !config.apiKey) {
+    throw new Error('Kein OpenAI API Key gefunden. Bitte VITE_OPENAI_API_KEY in der .env Datei setzen (lokal).')
   }
 
   const { topicLabel, description, count } = params
@@ -253,7 +274,7 @@ export async function generateVokabelSetWithAI(params: {
       ],
       temperature: 0.4,
     },
-    apiKey,
+    config,
   )
 
   const data = await res.json()
@@ -300,9 +321,9 @@ export async function chatLernsetAssistant(
   messages: { role: 'user' | 'assistant'; content: string }[],
   state?: LernsetAssistantState,
 ): Promise<LernsetAssistantTurn> {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error('Kein OpenAI API Key gefunden. Bitte VITE_OPENAI_API_KEY in der .env Datei setzen.')
+  const config = getApiConfig()
+  if (!config.useProxy && !config.apiKey) {
+    throw new Error('Kein OpenAI API Key gefunden. Bitte VITE_OPENAI_API_KEY in der .env Datei setzen (lokal).')
   }
 
   const systemPrompt =
@@ -350,7 +371,7 @@ export async function chatLernsetAssistant(
       temperature: 0.4,
       response_format: { type: 'json_object' },
     },
-    apiKey,
+    config,
   )
 
   const data = await res.json()
@@ -413,9 +434,9 @@ export async function generateKarteikartenSetWithAI(params: {
   klasse: number
   schwierigkeit?: string
 }): Promise<AiKarteikartenSetResponse> {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error('Kein OpenAI API Key gefunden. Bitte VITE_OPENAI_API_KEY in der .env Datei setzen.')
+  const config = getApiConfig()
+  if (!config.useProxy && !config.apiKey) {
+    throw new Error('Kein OpenAI API Key gefunden. Bitte VITE_OPENAI_API_KEY in der .env Datei setzen (lokal).')
   }
 
   const { fachName, topic, count, klasse, schwierigkeit } = params
@@ -452,7 +473,7 @@ export async function generateKarteikartenSetWithAI(params: {
       temperature: 0.4,
       response_format: { type: 'json_object' },
     },
-    apiKey,
+    config,
   )
 
   const data = await res.json()
@@ -508,9 +529,9 @@ export async function generateKarteikartenSetWithAI(params: {
 export async function chatLernSupport(
   messages: { role: 'user' | 'assistant'; content: string }[],
 ): Promise<string> {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error('Kein OpenAI API Key gefunden. Bitte VITE_OPENAI_API_KEY in der .env Datei setzen.')
+  const config = getApiConfig()
+  if (!config.useProxy && !config.apiKey) {
+    throw new Error('Kein OpenAI API Key gefunden. Bitte VITE_OPENAI_API_KEY in der .env Datei setzen (lokal).')
   }
 
   const systemPrompt =
@@ -534,7 +555,7 @@ export async function chatLernSupport(
       ],
       temperature: 0.5,
     },
-    apiKey,
+    config,
   )
 
   const data = await res.json()
